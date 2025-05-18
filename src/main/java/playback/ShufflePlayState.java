@@ -2,34 +2,25 @@ package playback;
 
 import server.music.DoublyLinkedPlaylist;
 
-public class ShufflePlayState implements PlaybackState {
+public class ShufflePlayState implements PlaybackMode {
 
     @Override
-    public void play(DoublyLinkedPlaylist playlist) {
-        System.out.println("🔀 Lecture en mode aléatoire : " + playlist.getCurrentSong());
-    }
+    public void next(PlaybackService service, DoublyLinkedPlaylist playlist) {
+        if (playlist == null || playlist.isEmpty()) return;
 
-    @Override
-    public void next(DoublyLinkedPlaylist playlist) {
         playlist.shuffle();
-        play(playlist);
+        System.out.println("🔀 Chanson aléatoire : " +
+                (playlist.getCurrentSong() != null ? playlist.getCurrentSong().getTitle() : "Aucune chanson"));
     }
 
     @Override
-    public void previous(DoublyLinkedPlaylist playlist) {
-        playlist.shuffle();
-        play(playlist);
+    public void previous(PlaybackService service, DoublyLinkedPlaylist playlist) {
+        // En mode shuffle, previous fait la même chose que next - choix aléatoire
+        next(service, playlist);
     }
 
     @Override
-    public void pause(PlaybackService service, DoublyLinkedPlaylist playlist) {
-        System.out.println("⏸️ Pause en mode aléatoire.");
-        service.setState(new PausedState());
-    }
-
-    @Override
-    public void stop(PlaybackService service, DoublyLinkedPlaylist playlist) {
-        System.out.println("⏹️ Arrêt du mode aléatoire.");
-        service.setState(new StoppedState());
+    public String getName() {
+        return "Shuffle";
     }
 }

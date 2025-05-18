@@ -1,33 +1,27 @@
 package playback;
 
 import server.music.DoublyLinkedPlaylist;
+import server.music.Song;
 
-public class RepeatPlayState implements PlaybackState {
+public class RepeatPlayState implements PlaybackMode {
 
     @Override
-    public void play(DoublyLinkedPlaylist playlist) {
-        System.out.println("🔁 Répétition : " + playlist.getCurrentSong());
+    public void next(PlaybackService service, DoublyLinkedPlaylist playlist) {
+        if (playlist == null || playlist.isEmpty()) return;
+
+        Song currentSong = playlist.getCurrentSong();
+        System.out.println("🔁 Répétition : " +
+                (currentSong != null ? currentSong.getTitle() : "Aucune chanson"));
     }
 
     @Override
-    public void next(DoublyLinkedPlaylist playlist) {
-        play(playlist);
+    public void previous(PlaybackService service, DoublyLinkedPlaylist playlist) {
+        // En mode répétition, previous fait la même chose que next
+        next(service, playlist);
     }
 
     @Override
-    public void previous(DoublyLinkedPlaylist playlist) {
-        play(playlist);
-    }
-
-    @Override
-    public void pause(PlaybackService service, DoublyLinkedPlaylist playlist) {
-        System.out.println("⏸️ Pause in repeat mode.");
-        service.setState(new PausedState());
-    }
-
-    @Override
-    public void stop(PlaybackService service, DoublyLinkedPlaylist playlist) {
-        System.out.println("⏹️ Stop repeat mode.");
-        service.setState(new StoppedState());
+    public String getName() {
+        return "Repeat";
     }
 }

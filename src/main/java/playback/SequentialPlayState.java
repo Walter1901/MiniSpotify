@@ -2,34 +2,28 @@ package playback;
 
 import server.music.DoublyLinkedPlaylist;
 
-public class SequentialPlayState implements PlaybackState {
+public class SequentialPlayState implements PlaybackMode {
 
     @Override
-    public void play(DoublyLinkedPlaylist playlist) {
-        System.out.println("▶ Lecture séquentielle : " + playlist.getCurrentSong());
-    }
+    public void next(PlaybackService service, DoublyLinkedPlaylist playlist) {
+        if (playlist == null || playlist.isEmpty()) return;
 
-    @Override
-    public void next(DoublyLinkedPlaylist playlist) {
         playlist.next();
-        play(playlist);
+        System.out.println("⏭️ Chanson suivante (mode séquentiel) : " +
+                (playlist.getCurrentSong() != null ? playlist.getCurrentSong().getTitle() : "Aucune chanson"));
     }
 
     @Override
-    public void previous(DoublyLinkedPlaylist playlist) {
+    public void previous(PlaybackService service, DoublyLinkedPlaylist playlist) {
+        if (playlist == null || playlist.isEmpty()) return;
+
         playlist.previous();
-        play(playlist);
+        System.out.println("⏮️ Chanson précédente (mode séquentiel) : " +
+                (playlist.getCurrentSong() != null ? playlist.getCurrentSong().getTitle() : "Aucune chanson"));
     }
 
     @Override
-    public void pause(PlaybackService service, DoublyLinkedPlaylist playlist) {
-        System.out.println("⏸️ Pause séquentielle.");
-        service.setState(new PausedState());
-    }
-
-    @Override
-    public void stop(PlaybackService service, DoublyLinkedPlaylist playlist) {
-        System.out.println("⏹️ Arrêt de la lecture séquentielle.");
-        service.setState(new StoppedState());
+    public String getName() {
+        return "Sequential";
     }
 }

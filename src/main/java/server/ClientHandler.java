@@ -1,257 +1,141 @@
 package server;
 
+import java.io.*;
+import java.net.Socket;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 import persistence.UserPersistenceManager;
-import server.music.Song;
+import server.command.ServerCommand;
 import server.music.MusicLibrary;
+import server.music.Playlist;
+import server.music.Song;
+import server.protocol.ServerProtocol;
 import users.FreeUser;
 import users.PremiumUser;
 import users.User;
-import server.music.Playlist;
 import utils.PasswordHasher;
 
-import java.io.*;
-import java.net.Socket;
-import java.util.List;
-import java.util.stream.Collectors;
-
+/**
+ * Gestionnaire de client qui traite les requêtes d'un client connecté
+ */
 public class ClientHandler implements Runnable {
     private Socket socket;
-    private User loggedInUser; // Stores the connected user
+    private User loggedInUser;
+    private BufferedReader in;
+    private PrintWriter out;
 
+    // Map des commandes implémentant le Command Factory Pattern
+    private Map<String, CommandFactory> commandFactories;
+
+    /**
+     * Constructeur
+     */
     public ClientHandler(Socket socket) {
         this.socket = socket;
+        initializeCommandFactories();
     }
+
+
+    /**
+     * Initialise les fabriques de commandes
+     */
+    private void initializeCommandFactories() {
+        commandFactories = new HashMap<>();
+
+        // Commandes d'authentification
+        commandFactories.put("LOGIN", this::createLoginCommand);
+        commandFactories.put("CREATE", this::createUserCommand);
+        commandFactories.put("LOGOUT", args -> out -> {
+            loggedInUser = null;
+            return true;
+        });
+
+        // Commandes de playlist
+        commandFactories.put("CREATE_PLAYLIST", this::createPlaylistCommand);
+        commandFactories.put("GET_PLAYLISTS", this::getPlaylistsCommand);
+        commandFactories.put("CHECK_PLAYLIST", this::checkPlaylistCommand);
+        commandFactories.put("ADD_SONG_TO_PLAYLIST", this::addSongToPlaylistCommand);
+        commandFactories.put("REMOVE_SONG_FROM_PLAYLIST", this::removeSongFromPlaylistCommand);
+
+        // Commandes de bibliothèque musicale
+        commandFactories.put("GET_PLAYLIST_SONGS", this::getPlaylistSongsCommand);
+        commandFactories.put("GET_ALL_SONGS", args -> getAllSongsCommand());
+        commandFactories.put("SEARCH_TITLE", this::searchTitleCommand);
+        commandFactories.put("SEARCH_ARTIST", this::searchArtistCommand);
+
+        // Commandes du lecteur
+        commandFactories.put("LOAD_PLAYLIST", this::loadPlaylistCommand);
+        commandFactories.put("SET_PLAYBACK_MODE", this::setPlaybackModeCommand);
+        commandFactories.put("PLAYER_PLAY", args -> playerPlayCommand(args));
+        commandFactories.put("PLAYER_PAUSE", args -> playerPauseCommand(args));
+        commandFactories.put("PLAYER_STOP", args -> playerStopCommand(args));
+        commandFactories.put("PLAYER_NEXT", args -> playerNextCommand(args));
+        commandFactories.put("PLAYER_PREV", args -> playerPrevCommand(args));
+        commandFactories.put("PLAYER_EXIT", args -> playerExitCommand(args));
+    }
+
 
     @Override
     public void run() {
-        try (Socket s = this.socket;
-             BufferedReader in = new BufferedReader(new InputStreamReader(s.getInputStream()));
-             PrintWriter out = new PrintWriter(s.getOutputStream(), true)) {
+        try {
+            in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            out = new PrintWriter(socket.getOutputStream(), true);
 
             out.println("🎵 Welcome to MiniSpotify server!");
 
             String line;
             while ((line = in.readLine()) != null) {
-                System.out.println("DEBUG: Received command -> " + line); // Debug display
-
-                if (line.startsWith("LOGIN")) {
-                    handleLogin(line, out);
-                } else if (line.startsWith("CREATE ")) {
-                    handleCreateUser(line, out);
-                } else if (line.startsWith("CREATE_PLAYLIST ")) {
-                    handleCreatePlaylist(line, out);
-                } else if (line.startsWith("GET_PLAYLISTS")) {
-                    handleGetPlaylists(out);
-                } else if (line.startsWith("GET_ALL_SONGS")) {
-                    handleGetAllSongs(out);
-                } else if (line.startsWith("ADD_SONG_TO_PLAYLIST ")) {
-                    handleAddSongToPlaylist(line, out);
-                } else if (line.startsWith("CHECK_PLAYLIST ")) {
-                    handleCheckPlaylist(line, out);  // New command handler
-                } else {
-                    out.println("ERROR: Unknown command");
-                }
+                System.out.println("DEBUG: Received command -> " + line);
+                processCommand(line);
             }
         } catch (IOException e) {
             System.err.println("Error in client handler: " + e.getMessage());
-            e.printStackTrace();
+        } finally {
+            closeResources();
         }
-    }
-
-    private void handleLogin(String line, PrintWriter out) {
-        String[] parts = line.split(" ");
-        if (parts.length != 3) {
-            out.println("LOGIN_FAIL Invalid format. Expected: LOGIN username password");
-            return;
-        }
-
-        String username = parts[1];
-        String password = parts[2];
-
-        List<User> users = UserPersistenceManager.loadUsers();
-        User matchingUser = users.stream()
-                .filter(u -> u.getUsername().equalsIgnoreCase(username))
-                .findFirst()
-                .orElse(null);
-
-        if (matchingUser != null && PasswordHasher.checkPassword(password, matchingUser.getPassword())) {
-            loggedInUser = matchingUser;
-            out.println("LOGIN_SUCCESS");
-            System.out.println("DEBUG: User logged in: " + username);
-            System.out.println("DEBUG: User has " + loggedInUser.getPlaylists().size() + " playlists");
-        } else {
-            out.println("LOGIN_FAIL Incorrect username or password");
-        }
-    }
-
-    private void handleCreateUser(String line, PrintWriter out) {
-        String[] parts = line.split(" ");
-        if (parts.length != 4) {
-            out.println("CREATE_FAIL Invalid arguments. Expected: CREATE username password accountType");
-            return;
-        }
-
-        String username = parts[1];
-        String password = parts[2];
-        String accountType = parts[3];
-
-        if (UserPersistenceManager.doesUserExist(username)) {
-            out.println("CREATE_FAIL Username already exists");
-            return;
-        }
-
-        try {
-            String hashedPassword = PasswordHasher.hashPassword(password);
-            User newUser;
-
-            if ("free".equalsIgnoreCase(accountType)) {
-                newUser = new FreeUser(username, hashedPassword);
-            } else if ("premium".equalsIgnoreCase(accountType)) {
-                newUser = new PremiumUser(username, hashedPassword);
-            } else {
-                out.println("CREATE_FAIL Invalid account type. Use 'free' or 'premium'");
-                return;
-            }
-
-            UserPersistenceManager.addUser(newUser);
-            out.println("CREATE_SUCCESS");
-        } catch (Exception e) {
-            System.err.println("❌ Error during CREATE: " + e.getMessage());
-            e.printStackTrace();
-            out.println("CREATE_FAIL Server error: " + e.getMessage());
-        }
-    }
-
-    private void handleCreatePlaylist(String line, PrintWriter out) {
-        if (loggedInUser == null) {
-            out.println("CREATE_PLAYLIST_FAIL No user logged in");
-            return;
-        }
-
-        String[] parts = line.split(" ", 2);
-        if (parts.length != 2) {
-            out.println("CREATE_PLAYLIST_FAIL Invalid arguments. Expected: CREATE_PLAYLIST playlistName");
-            return;
-        }
-
-        String playlistName = parts[1].trim();
-        System.out.println("DEBUG: Creating playlist: '" + playlistName + "'");
-
-        if (loggedInUser.canAddPlaylist()) {
-            boolean exists = loggedInUser.getPlaylists().stream()
-                    .anyMatch(p -> p.getName().equalsIgnoreCase(playlistName));
-
-            if (!exists) {
-                loggedInUser.addPlaylist(new Playlist(playlistName));
-
-                // Update the user in the persistence system
-                List<User> allUsers = UserPersistenceManager.loadUsers();
-                List<User> updatedUsers = allUsers.stream()
-                        .map(u -> u.getUsername().equalsIgnoreCase(loggedInUser.getUsername()) ? loggedInUser : u)
-                        .collect(Collectors.toList());
-
-                UserPersistenceManager.saveUsers(updatedUsers);
-
-                // Sync user state after saving
-                syncUserState();
-
-                System.out.println("DEBUG: Playlist created: '" + playlistName + "'");
-                System.out.println("DEBUG: User now has " + loggedInUser.getPlaylists().size() + " playlists");
-                out.println("PLAYLIST_CREATED");
-            } else {
-                out.println("PLAYLIST_EXISTS");
-            }
-        } else {
-            out.println("CREATE_PLAYLIST_FAIL Limit reached");
-        }
-    }
-
-    private void handleGetPlaylists(PrintWriter out) {
-        if (loggedInUser == null) {
-            out.println("ERROR: Not logged in");
-            out.println("END");
-            return;
-        }
-
-        System.out.println("DEBUG: Getting playlists for user: " + loggedInUser.getUsername());
-        System.out.println("DEBUG: User has " + loggedInUser.getPlaylists().size() + " playlists");
-
-        if (loggedInUser.getPlaylists().isEmpty()) {
-            out.println("END");
-            return;
-        }
-
-        for (Playlist playlist : loggedInUser.getPlaylists()) {
-            out.println(playlist.getName());
-            System.out.println("DEBUG: Sending playlist: " + playlist.getName());
-        }
-        out.println("END");
-    }
-
-    private void handleGetAllSongs(PrintWriter out) {
-        List<Song> songs = MusicLibrary.getInstance().getAllSongs();
-
-        if (songs.isEmpty()) {
-            out.println("No songs in the library.");
-        } else {
-            for (Song song : songs) {
-                out.println(song.toString());
-            }
-        }
-        out.println("END");
     }
 
     /**
-     * Method to verify if a playlist exists
+     * Traite une commande reçue du client
      */
-    private void handleCheckPlaylist(String line, PrintWriter out) {
-        if (loggedInUser == null) {
-            out.println("ERROR: Not logged in");
-            return;
-        }
+    private void processCommand(String commandLine) {
+        String[] parts = commandLine.split(" ", 2);
+        String command = parts[0];
+        String args = parts.length > 1 ? parts[1] : "";
 
-        // Parse the command
-        String[] parts = line.split(" ", 2);
-        if (parts.length != 2) {
-            out.println("ERROR: Invalid arguments. Expected: CHECK_PLAYLIST playlistName");
-            return;
-        }
-
-        String playlistName = parts[1].trim();
-        System.out.println("DEBUG: Checking for playlist: '" + playlistName + "'");
-
-        // Debug output all playlists
-        System.out.println("DEBUG: User has " + loggedInUser.getPlaylists().size() + " playlists:");
-        for (Playlist p : loggedInUser.getPlaylists()) {
-            System.out.println("DEBUG: - '" + p.getName() + "'");
-        }
-
-        // Check if the playlist exists
-        boolean exists = false;
-        for (Playlist p : loggedInUser.getPlaylists()) {
-            if (p.getName().equalsIgnoreCase(playlistName)) {
-                exists = true;
-                break;
-            }
-        }
-
-        if (exists) {
-            out.println("PLAYLIST_FOUND");
+        CommandFactory factory = commandFactories.get(command);
+        if (factory != null) {
+            ServerCommand cmd = factory.createCommand(args);
+            cmd.execute(out);
         } else {
-            out.println("PLAYLIST_NOT_FOUND");
+            out.println(ServerProtocol.RESP_ERROR + ": Unknown command");
         }
     }
 
     /**
-     * Method to handle synchronization between client and server
+     * Ferme les ressources
+     */
+    private void closeResources() {
+        try {
+            if (in != null) in.close();
+            if (out != null) out.close();
+            if (socket != null && !socket.isClosed()) socket.close();
+        } catch (IOException e) {
+            System.err.println("Error closing resources: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Synchronise l'état de l'utilisateur avec la persistence
      */
     private void syncUserState() {
-        // Make sure we have the latest data from persistence
         if (loggedInUser != null) {
             List<User> users = UserPersistenceManager.loadUsers();
             for (User u : users) {
                 if (u.getUsername().equals(loggedInUser.getUsername())) {
-                    // Update the logged-in user with the latest data from persistence
                     loggedInUser = u;
                     System.out.println("DEBUG: Synchronized user state for: " + loggedInUser.getUsername());
                     System.out.println("DEBUG: User now has " + loggedInUser.getPlaylists().size() + " playlists");
@@ -261,61 +145,604 @@ public class ClientHandler implements Runnable {
         }
     }
 
+    // Interfaces et implémentations pour Command Factory
+
     /**
-     * Improved method to add songs to playlists
+     * Interface fonctionnelle pour la fabrique de commandes
      */
+    @FunctionalInterface
+    private interface CommandFactory {
+        ServerCommand createCommand(String args);
+    }
+
+    // Commandes d'authentification
+
+    private ServerCommand createLoginCommand(String args) {
+        return out -> {
+            String[] parts = args.split(" ");
+            if (parts.length != 2) {
+                out.println(ServerProtocol.RESP_LOGIN_FAIL + " Invalid format. Expected: LOGIN username password");
+                return false;
+            }
+
+            String username = parts[0];
+            String password = parts[1];
+
+            List<User> users = UserPersistenceManager.loadUsers();
+            User matchingUser = users.stream()
+                    .filter(u -> u.getUsername().equalsIgnoreCase(username))
+                    .findFirst()
+                    .orElse(null);
+
+            if (matchingUser != null && PasswordHasher.checkPassword(password, matchingUser.getPassword())) {
+                loggedInUser = matchingUser;
+                out.println(ServerProtocol.RESP_LOGIN_SUCCESS);
+                System.out.println("DEBUG: User logged in: " + username);
+                System.out.println("DEBUG: User has " + loggedInUser.getPlaylists().size() + " playlists");
+                return true;
+            } else {
+                out.println(ServerProtocol.RESP_LOGIN_FAIL + " Incorrect username or password");
+                return false;
+            }
+        };
+    }
+
+    private ServerCommand createUserCommand(String args) {
+        return out -> {
+            String[] parts = args.split(" ");
+            if (parts.length != 3) {
+                out.println(ServerProtocol.RESP_CREATE_FAIL + " Invalid arguments. Expected: CREATE username password accountType");
+                return false;
+            }
+
+            String username = parts[0];
+            String password = parts[1];
+            String accountType = parts[2];
+
+            if (UserPersistenceManager.doesUserExist(username)) {
+                out.println(ServerProtocol.RESP_CREATE_FAIL + " Username already exists");
+                return false;
+            }
+
+            try {
+                String hashedPassword = PasswordHasher.hashPassword(password);
+                User newUser;
+
+                if ("free".equalsIgnoreCase(accountType)) {
+                    newUser = new FreeUser(username, hashedPassword);
+                } else if ("premium".equalsIgnoreCase(accountType)) {
+                    newUser = new PremiumUser(username, hashedPassword);
+                } else {
+                    out.println(ServerProtocol.RESP_CREATE_FAIL + " Invalid account type. Use 'free' or 'premium'");
+                    return false;
+                }
+
+                UserPersistenceManager.addUser(newUser);
+                out.println(ServerProtocol.RESP_CREATE_SUCCESS);
+                return true;
+            } catch (Exception e) {
+                System.err.println("❌ Error during CREATE: " + e.getMessage());
+                e.printStackTrace();
+                out.println(ServerProtocol.RESP_CREATE_FAIL + " Server error: " + e.getMessage());
+                return false;
+            }
+        };
+    }
+
     /**
-     * Improved method to add songs to playlists
+     * Crée une commande pour créer une playlist
      */
-    private void handleAddSongToPlaylist(String line, PrintWriter out) {
-        if (loggedInUser == null) {
-            out.println("ERROR: Not logged in");
-            return;
-        }
+    private ServerCommand createPlaylistCommand(String args) {
+        return out -> {
+            if (loggedInUser == null) {
+                out.println("CREATE_PLAYLIST_FAIL No user logged in");
+                return false;
+            }
 
-        // IMPORTANT: Sync with persistence first
-        syncUserState();
+            String playlistName = args.trim();
+            System.out.println("DEBUG: Creating playlist: '" + playlistName + "'");
 
-        String[] parts = line.split(" ", 3);
-        if (parts.length < 3) {
-            out.println("ERROR: Invalid arguments. Expected: ADD_SONG_TO_PLAYLIST playlistName songTitle");
-            return;
-        }
+            if (loggedInUser.canAddPlaylist()) {
+                boolean exists = loggedInUser.getPlaylists().stream()
+                        .anyMatch(p -> p.getName().equalsIgnoreCase(playlistName));
 
-        String playlistName = parts[1].trim();
-        String songTitle = parts[2].trim();
+                if (!exists) {
+                    loggedInUser.addPlaylist(new Playlist(playlistName));
 
-        // Find playlist (case-insensitive)
-        Playlist found = loggedInUser.getPlaylists().stream()
-                .filter(p -> p.getName().equalsIgnoreCase(playlistName))
-                .findFirst()
-                .orElse(null);
+                    // Mettre à jour l'utilisateur dans le système de persistance
+                    UserPersistenceManager.updateUser(loggedInUser);
 
-        if (found == null) {
-            out.println("Playlist not found.");
-            return;
-        }
+                    System.out.println("DEBUG: Playlist created: '" + playlistName + "'");
+                    System.out.println("DEBUG: User now has " + loggedInUser.getPlaylists().size() + " playlists");
+                    out.println(ServerProtocol.RESP_PLAYLIST_CREATED);
+                    return true;
+                } else {
+                    out.println(ServerProtocol.RESP_PLAYLIST_EXISTS);
+                    return false;
+                }
+            } else {
+                out.println("CREATE_PLAYLIST_FAIL Limit reached");
+                return false;
+            }
+        };
+    }
 
-        // Find song
-        Song song = MusicLibrary.getInstance().searchByTitle(songTitle).stream()
-                .findFirst()
-                .orElse(null);
+    /**
+     * Crée une commande pour récupérer les playlists
+     */
+    private ServerCommand getPlaylistsCommand(String args) {
+        return out -> {
+            if (loggedInUser == null) {
+                out.println(ServerProtocol.RESP_ERROR + ": Not logged in");
+                out.println(ServerProtocol.RESP_END);
+                return false;
+            }
 
-        if (song == null) {
-            out.println("Song not found.");
-            return;
-        }
+            System.out.println("DEBUG: Getting playlists for user: " + loggedInUser.getUsername());
+            System.out.println("DEBUG: User has " + loggedInUser.getPlaylists().size() + " playlists");
 
-        // Add song and save changes
-        found.addSong(song);
+            if (loggedInUser.getPlaylists().isEmpty()) {
+                out.println(ServerProtocol.RESP_END);
+                return true;
+            }
 
-        // Update persistence
-        List<User> allUsers = UserPersistenceManager.loadUsers();
-        List<User> updatedUsers = allUsers.stream()
-                .map(u -> u.getUsername().equalsIgnoreCase(loggedInUser.getUsername()) ? loggedInUser : u)
-                .collect(Collectors.toList());
-        UserPersistenceManager.saveUsers(updatedUsers);
+            for (Playlist playlist : loggedInUser.getPlaylists()) {
+                out.println(playlist.getName());
+                System.out.println("DEBUG: Sending playlist: " + playlist.getName());
+            }
+            out.println(ServerProtocol.RESP_END);
+            return true;
+        };
+    }
 
-        out.println("SUCCESS: Song added to playlist.");
+    private ServerCommand checkPlaylistCommand(String args) {
+        return out -> {
+            if (loggedInUser == null) {
+                out.println(ServerProtocol.RESP_ERROR + ": Not logged in");
+                return false;
+            }
+
+            String playlistName = args.trim();
+            System.out.println("DEBUG: Checking for playlist: '" + playlistName + "'");
+
+            // Debug output all playlists
+            System.out.println("DEBUG: User has " + loggedInUser.getPlaylists().size() + " playlists:");
+            for (Playlist p : loggedInUser.getPlaylists()) {
+                System.out.println("DEBUG: - '" + p.getName() + "'");
+            }
+
+            // Check if the playlist exists
+            boolean exists = loggedInUser.getPlaylists().stream()
+                    .anyMatch(p -> p.getName().equalsIgnoreCase(playlistName));
+
+            if (exists) {
+                out.println(ServerProtocol.RESP_PLAYLIST_FOUND);
+                return true;
+            } else {
+                out.println(ServerProtocol.RESP_PLAYLIST_NOT_FOUND);
+                return false;
+            }
+        };
+    }
+
+    private ServerCommand addSongToPlaylistCommand(String args) {
+        return out -> {
+            if (loggedInUser == null) {
+                out.println("ERROR: Not logged in");
+                return false;
+            }
+
+            String[] parts = args.split(" ", 2);
+            if (parts.length < 2) {
+                out.println("ERROR: Invalid arguments. Expected: ADD_SONG_TO_PLAYLIST playlistName songTitle");
+                return false;
+            }
+
+            String playlistName = parts[0].trim();
+            String songTitle = parts[1].trim();
+
+            // Trouver la playlist
+            Playlist found = null;
+            for (Playlist p : loggedInUser.getPlaylists()) {
+                if (p.getName().equalsIgnoreCase(playlistName)) {
+                    found = p;
+                    break;
+                }
+            }
+
+            if (found == null) {
+                out.println("Playlist not found.");
+                return false;
+            }
+
+            // Trouver la chanson avec tous ses attributs dans la bibliothèque
+            Song originalSong = null;
+            for (Song s : MusicLibrary.getInstance().getAllSongs()) {
+                if (s.getTitle().equals(songTitle)) {
+                    originalSong = s;
+                    break;
+                }
+            }
+
+            if (originalSong == null) {
+                out.println("Song not found.");
+                return false;
+            }
+
+            System.out.println("DEBUG: Adding song '" + originalSong.getTitle() +
+                    "' with path: " + originalSong.getFilePath() +
+                    " to playlist '" + playlistName + "'");
+
+            // Créer une copie complète de la chanson pour l'ajouter à la playlist
+            Song songCopy = new Song(
+                    originalSong.getTitle(),
+                    originalSong.getArtist(),
+                    originalSong.getAlbum(),
+                    originalSong.getGenre(),
+                    originalSong.getDuration()
+            );
+            // Conserver le chemin du fichier!
+            songCopy.setFilePath(originalSong.getFilePath());
+
+            // Ajouter à la playlist
+            found.addSong(songCopy);
+
+            // Mettre à jour la persistance
+            List<User> allUsers = UserPersistenceManager.loadUsers();
+            List<User> updatedUsers = allUsers.stream()
+                    .map(u -> u.getUsername().equalsIgnoreCase(loggedInUser.getUsername()) ? loggedInUser : u)
+                    .collect(Collectors.toList());
+            UserPersistenceManager.saveUsers(updatedUsers);
+
+            out.println("SUCCESS: Song added to playlist.");
+            return true;
+        };
+    }
+
+    private ServerCommand removeSongFromPlaylistCommand(String args) {
+        return out -> {
+            if (loggedInUser == null) {
+                out.println(ServerProtocol.RESP_ERROR + ": Not logged in");
+                return false;
+            }
+
+            String[] parts = args.split(" ", 2);
+            if (parts.length < 2) {
+                out.println(ServerProtocol.RESP_ERROR + ": Invalid arguments. Expected: REMOVE_SONG_FROM_PLAYLIST playlistName songTitle");
+                return false;
+            }
+
+            String playlistName = parts[0].trim();
+            String songTitle = parts[1].trim();
+
+            // Find playlist
+            Playlist found = loggedInUser.getPlaylists().stream()
+                    .filter(p -> p.getName().equalsIgnoreCase(playlistName))
+                    .findFirst()
+                    .orElse(null);
+
+            if (found == null) {
+                out.println(ServerProtocol.RESP_ERROR + ": Playlist not found");
+                return false;
+            }
+
+            // Remove song
+            boolean removed = found.removeSong(songTitle);
+
+            if (removed) {
+                // Update persistence
+                List<User> allUsers = UserPersistenceManager.loadUsers();
+                List<User> updatedUsers = allUsers.stream()
+                        .map(u -> u.getUsername().equalsIgnoreCase(loggedInUser.getUsername()) ? loggedInUser : u)
+                        .collect(Collectors.toList());
+                UserPersistenceManager.saveUsers(updatedUsers);
+
+                out.println(ServerProtocol.RESP_SUCCESS + ": Song removed from playlist");
+                return true;
+            } else {
+                out.println(ServerProtocol.RESP_ERROR + ": Song not found in playlist");
+                return false;
+            }
+        };
+    }
+
+    // Commandes de bibliothèque musicale
+
+    private ServerCommand getPlaylistSongsCommand(String args) {
+        return out -> {
+            if (loggedInUser == null) {
+                out.println("ERROR: Not logged in");
+                out.println("END");
+                return false;
+            }
+
+            String playlistName = args.trim();
+            System.out.println("DEBUG: Getting songs for playlist: " + playlistName);
+
+            // Trouver la playlist
+            Playlist foundPlaylist = null;
+            for (Playlist p : loggedInUser.getPlaylists()) {
+                if (p.getName().equalsIgnoreCase(playlistName)) {
+                    foundPlaylist = p;
+                    break;
+                }
+            }
+
+            if (foundPlaylist == null) {
+                out.println("ERROR: Playlist not found");
+                out.println("END");
+                return false;
+            }
+
+            // Récupérer les chansons
+            List<Song> songs = foundPlaylist.getSongs();
+
+            if (songs.isEmpty()) {
+                out.println("SUCCESS: Playlist is empty");
+                out.println("END");
+                return true;
+            }
+
+            out.println("SUCCESS: Found " + songs.size() + " songs");
+
+            // Pour chaque chanson dans la playlist
+            for (Song song : songs) {
+                // Chercher la version complète de la chanson dans la bibliothèque
+                String songTitle = song.getTitle();
+                Song librarySong = null;
+
+                for (Song s : MusicLibrary.getInstance().getAllSongs()) {
+                    if (s.getTitle().equals(songTitle)) {
+                        librarySong = s;
+                        break;
+                    }
+                }
+
+                // Si la chanson existe dans la bibliothèque, utiliser ses détails complets
+                if (librarySong != null) {
+                    // Formatage SIMPLE et CLAIR pour éviter toute confusion
+                    out.println(librarySong.getTitle() + "|" +
+                            librarySong.getArtist() + "|" +
+                            librarySong.getAlbum() + "|" +
+                            librarySong.getGenre() + "|" +
+                            librarySong.getDuration() + "|" +
+                            (librarySong.getFilePath() != null ? librarySong.getFilePath() : ""));
+
+                    System.out.println("DEBUG: Sending song '" + librarySong.getTitle() +
+                            "' with path: " + librarySong.getFilePath());
+                } else {
+                    // Si la chanson n'est pas dans la bibliothèque, utiliser la version de la playlist
+                    out.println(song.getTitle() + "|" +
+                            song.getArtist() + "|" +
+                            song.getAlbum() + "|" +
+                            song.getGenre() + "|" +
+                            song.getDuration() + "|" +
+                            (song.getFilePath() != null ? song.getFilePath() : ""));
+
+                    System.out.println("DEBUG: Sending song '" + song.getTitle() +
+                            "' with path: " + song.getFilePath() + " (not found in library)");
+                }
+            }
+
+            out.println("END");
+            return true;
+        };
+    }
+
+    private ServerCommand setPlaybackModeCommand(String args) {
+        return out -> {
+            String modeChoice = args.trim();
+
+            if (loggedInUser == null) {
+                out.println("ERROR: Not logged in");
+                return false;
+            }
+
+            boolean validMode = true;
+            switch (modeChoice) {
+                case "1": // Sequential
+                    System.out.println("DEBUG: Setting playback mode to Sequential");
+                    break;
+                case "2": // Shuffle
+                    System.out.println("DEBUG: Setting playback mode to Shuffle");
+                    break;
+                case "3": // Repeat
+                    System.out.println("DEBUG: Setting playback mode to Repeat");
+                    break;
+                default:
+                    validMode = false;
+                    System.out.println("DEBUG: Unknown playback mode: " + modeChoice);
+            }
+
+            if (validMode) {
+                out.println("SUCCESS: Playback mode set");
+                return true;
+            } else {
+                out.println("ERROR: Invalid playback mode");
+                return false;
+            }
+        };
+    }
+
+
+    /**
+     * Gère la commande de lecture (play)
+     */
+    private ServerCommand playerPlayCommand(String args) {
+        return out -> {
+            if (loggedInUser == null) {
+                out.println("ERROR: Not logged in");
+                return false;
+            }
+
+            System.out.println("DEBUG: Player play command received");
+            out.println("▶️ Playing music...");
+            return true;
+        };
+    }
+
+    /**
+     * Gère la commande de pause
+     */
+    private ServerCommand playerPauseCommand(String args) {
+        return out -> {
+            if (loggedInUser == null) {
+                out.println("ERROR: Not logged in");
+                return false;
+            }
+
+            System.out.println("DEBUG: Player pause command received");
+            out.println("⏸️ Music paused");
+            return true;
+        };
+    }
+
+    /**
+     * Gère la commande d'arrêt
+     */
+    private ServerCommand playerStopCommand(String args) {
+        return out -> {
+            if (loggedInUser == null) {
+                out.println("ERROR: Not logged in");
+                return false;
+            }
+
+            System.out.println("DEBUG: Player stop command received");
+            out.println("⏹️ Music stopped");
+            return true;
+        };
+    }
+
+    /**
+     * Gère la commande pour passer à la chanson suivante
+     */
+    private ServerCommand playerNextCommand(String args) {
+        return out -> {
+            if (loggedInUser == null) {
+                out.println("ERROR: Not logged in");
+                return false;
+            }
+
+            System.out.println("DEBUG: Player next command received");
+            out.println("⏭️ Next song");
+            return true;
+        };
+    }
+
+    /**
+     * Gère la commande pour revenir à la chanson précédente
+     */
+    private ServerCommand playerPrevCommand(String args) {
+        return out -> {
+            if (loggedInUser == null) {
+                out.println("ERROR: Not logged in");
+                return false;
+            }
+
+            System.out.println("DEBUG: Player previous command received");
+            out.println("⏮️ Previous song");
+            return true;
+        };
+    }
+
+    /**
+     * Gère la commande pour quitter le lecteur
+     */
+    private ServerCommand playerExitCommand(String args) {
+        return out -> {
+            if (loggedInUser == null) {
+                out.println("ERROR: Not logged in");
+                return false;
+            }
+
+            System.out.println("DEBUG: Player exit command received");
+            out.println("Exiting player mode");
+            return true;
+        };
+    }
+
+    private ServerCommand loadPlaylistCommand(String args) {
+        return out -> {
+            if (loggedInUser == null) {
+                out.println("ERROR: Not logged in");
+                return false;
+            }
+
+            String playlistName = args.trim();
+            System.out.println("DEBUG: Loading playlist: " + playlistName);
+
+            // Trouver la playlist dans les playlists de l'utilisateur
+            Playlist foundPlaylist = null;
+            for (Playlist p : loggedInUser.getPlaylists()) {
+                if (p.getName().equalsIgnoreCase(playlistName)) {
+                    foundPlaylist = p;
+                    break;
+                }
+            }
+
+            if (foundPlaylist == null) {
+                out.println("ERROR: Playlist not found");
+                return false;
+            }
+
+            System.out.println("DEBUG: Playlist found: " + foundPlaylist.getName()
+                    + " with " + foundPlaylist.size() + " songs");
+            out.println("SUCCESS: Playlist loaded successfully");
+            return true;
+        };
+    }
+
+
+    /**
+     * Crée une commande pour récupérer toutes les chansons
+     */
+    private ServerCommand getAllSongsCommand() {
+        return out -> {
+            List<Song> songs = MusicLibrary.getInstance().getAllSongs();
+
+            if (songs.isEmpty()) {
+                out.println("No songs in the library.");
+            } else {
+                for (Song song : songs) {
+                    out.println(song.toString());
+                }
+            }
+            out.println("END");
+            return true;
+        };
+    }
+
+    private ServerCommand searchTitleCommand(String args) {
+        return out -> {
+            String title = args.trim();
+            List<Song> results = MusicLibrary.getInstance().searchByTitle(title);
+
+            if (results.isEmpty()) {
+                out.println("No songs found with title: " + title);
+            } else {
+                for (Song song : results) {
+                    out.println(song.toString());
+                }
+            }
+            out.println(ServerProtocol.RESP_END);
+            return true;
+        };
+    }
+
+    private ServerCommand searchArtistCommand(String args) {
+        return out -> {
+            String artist = args.trim();
+            List<Song> results = MusicLibrary.getInstance().filterByArtist(artist);
+
+            if (results.isEmpty()) {
+                out.println("No songs found by artist: " + artist);
+            } else {
+                for (Song song : results) {
+                    out.println(song.toString());
+                }
+            }
+            out.println(ServerProtocol.RESP_END);
+            return true;
+        };
     }
 }

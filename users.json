@@ -2,12 +2,103 @@
   {
     "username": "walter",
     "passwordHash": "5994471abb01112afcc18159f6cc74b4f511b99806da59b3caf5a9c173cacfc5",
-    "accountType": "free"
+    "accountType": "free",
+    "playlists": [
+      {
+        "name": "summer",
+        "songs": [
+          {
+            "title": "Mussulo",
+            "artist": "Dj Aka-m e Dj Malvado Feat Dody",
+            "album": "Afro House",
+            "genre": "Electronic",
+            "duration": 416
+          },
+          {
+            "title": "Ciel",
+            "artist": "GIMS",
+            "album": "Rap",
+            "genre": "Hip-Hop",
+            "duration": 306
+          },
+          {
+            "title": "NINAO",
+            "artist": "GIMS",
+            "album": "Rap",
+            "genre": "Hip-Hop",
+            "duration": 247
+          },
+          {
+            "title": "Mood",
+            "artist": "Keblack",
+            "album": "Rap",
+            "genre": "Hip-Hop",
+            "duration": 253
+          },
+          {
+            "title": "Melrose Place",
+            "artist": "Keblack Ft. Guy2Bezbar",
+            "album": "Rap",
+            "genre": "Hip-Hop",
+            "duration": 234
+          }
+        ]
+      }
+    ]
   },
   {
     "username": "Walter1901",
     "passwordHash": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92",
-    "accountType": "premium"
+    "accountType": "premium",
+    "playlists": [
+      {
+        "name": "summer",
+        "songs": [
+          {
+            "title": "Mussulo",
+            "artist": "Dj Aka-m e Dj Malvado Feat Dody",
+            "album": "Afro House",
+            "genre": "Electronic",
+            "duration": 416
+          },
+          {
+            "title": "Ciel",
+            "artist": "GIMS",
+            "album": "Rap",
+            "genre": "Hip-Hop",
+            "duration": 306
+          },
+          {
+            "title": "NINAO",
+            "artist": "GIMS",
+            "album": "Rap",
+            "genre": "Hip-Hop",
+            "duration": 247
+          },
+          {
+            "title": "Mood",
+            "artist": "Keblack",
+            "album": "Rap",
+            "genre": "Hip-Hop",
+            "duration": 253
+          },
+          {
+            "title": "Melrose Place",
+            "artist": "Keblack Ft. Guy2Bezbar",
+            "album": "Rap",
+            "genre": "Hip-Hop",
+            "duration": 234
+          },
+          {
+            "title": "NINAO",
+            "artist": "GIMS",
+            "album": "Album 2",
+            "genre": "Hip-Hop",
+            "duration": 247
+          }
+        ]
+      }
+    ]
   },
   {
     "username": "salut",
