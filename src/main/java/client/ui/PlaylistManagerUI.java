@@ -171,44 +171,89 @@ public class PlaylistManagerUI {
     }
 
     /**
-     * Supprime une chanson d'une playlist
+     * Version améliorée pour supprimer une chanson d'une playlist
+     * Cette méthode affiche d'abord les chansons avec des indices pour faciliter la sélection
      */
     private void removeSongFromPlaylist() throws IOException {
         System.out.println("==================================================================================");
         System.out.println("Playlist name: ");
         System.out.println("==================================================================================");
-        String playlistName = scanner.nextLine();
+        String playlistName = scanner.nextLine().trim();
 
-        out.println("GET_PLAYLIST " + playlistName);
+        // Vérifier d'abord si la playlist existe
+        out.println("CHECK_PLAYLIST " + playlistName);
         String response = in.readLine();
 
-        if (response.startsWith("ERROR")) {
+        if ("PLAYLIST_NOT_FOUND".equals(response)) {
             System.out.println("==================================================================================");
             System.out.println("Playlist not found.");
             System.out.println("==================================================================================");
             return;
         }
 
-        while (!(response = in.readLine()).equals("END")) {
+        // Récupérer les chansons de la playlist
+        out.println("GET_PLAYLIST_SONGS " + playlistName);
+        response = in.readLine();
+
+        if (!response.startsWith("SUCCESS")) {
+            System.out.println("==================================================================================");
             System.out.println(response);
+            System.out.println("==================================================================================");
+            return;
+        }
+
+        // Stocker les chansons pour pouvoir les référencer par index
+        List<String> songTitles = new ArrayList<>();
+        System.out.println("==================================================================================");
+        System.out.println("Songs in playlist " + playlistName + ":");
+        System.out.println("==================================================================================");
+
+        while (!(response = in.readLine()).equals("END")) {
+            // Format attendu: titre|artiste|album|genre|durée|chemin
+            String[] parts = response.split("\\|");
+            if (parts.length > 0) {
+                String title = parts[0];
+                songTitles.add(title);
+                System.out.println((songTitles.size() - 1) + ": " + response);
+            }
+        }
+
+        if (songTitles.isEmpty()) {
+            System.out.println("==================================================================================");
+            System.out.println("No songs in this playlist.");
+            System.out.println("==================================================================================");
+            return;
         }
 
         System.out.println("==================================================================================");
-        System.out.println("Enter the title of the song to be deleted: ");
+        System.out.println("Enter the index of the song to be deleted: ");
         System.out.println("==================================================================================");
-        String songTitle = scanner.nextLine();
 
+        int songIndex;
+        try {
+            songIndex = Integer.parseInt(scanner.nextLine().trim());
+            if (songIndex < 0 || songIndex >= songTitles.size()) {
+                System.out.println("==================================================================================");
+                System.out.println("Invalid song index.");
+                System.out.println("==================================================================================");
+                return;
+            }
+        } catch (NumberFormatException e) {
+            System.out.println("==================================================================================");
+            System.out.println("Please enter a valid number.");
+            System.out.println("==================================================================================");
+            return;
+        }
+
+        // Obtenir le titre de la chanson à l'index spécifié
+        String songTitle = songTitles.get(songIndex);
+
+        // Envoyer la commande au serveur
         out.println("REMOVE_SONG_FROM_PLAYLIST " + playlistName + " " + songTitle);
         response = in.readLine();
 
-        if (response.startsWith("SUCCESS")) {
-            System.out.println("==================================================================================");
-            System.out.println("Song deleted.");
-            System.out.println("==================================================================================");
-        } else {
-            System.out.println("==================================================================================");
-            System.out.println("Song not found in playlist.");
-            System.out.println("==================================================================================");
-        }
+        System.out.println("==================================================================================");
+        System.out.println(response);
+        System.out.println("==================================================================================");
     }
 }

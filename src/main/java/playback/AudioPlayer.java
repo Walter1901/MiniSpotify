@@ -5,6 +5,9 @@ import java.io.BufferedInputStream;
 import java.io.FileInputStream;
 import java.io.File;
 
+/**
+ * Gestionnaire de lecture audio utilisant JavaZoom JLayer
+ */
 public class AudioPlayer {
     private Player player;
     private Thread playerThread;
@@ -15,6 +18,10 @@ public class AudioPlayer {
     private long songTotalLength;
     private FileInputStream fileInputStream;
 
+    /**
+     * Lecture d'un fichier audio
+     * @param filePath chemin du fichier
+     */
     public void play(String filePath) {
         try {
             // Arrêter la lecture en cours si nécessaire
@@ -67,7 +74,11 @@ public class AudioPlayer {
         }
     }
 
-    public void pause() {
+    /**
+     * Met en pause la lecture et retourne la position
+     * @return position en octets dans le fichier
+     */
+    public long pause() {
         if (player != null && isPlaying && !isPaused) {
             try {
                 // JLayer ne supporte pas directement pause/resume
@@ -83,12 +94,18 @@ public class AudioPlayer {
                 }
 
                 System.out.println("⏸️ Lecture en pause à " + (songTotalLength - pauseLocation) + "/" + songTotalLength);
+                return songTotalLength - pauseLocation;
             } catch (Exception e) {
                 System.out.println("⚠️ Erreur lors de la pause: " + e.getMessage());
+                return 0;
             }
         }
+        return 0;
     }
 
+    /**
+     * Reprend la lecture à partir du point de pause
+     */
     public void resume() {
         if (isPaused && currentFile != null) {
             try {
@@ -122,6 +139,9 @@ public class AudioPlayer {
         }
     }
 
+    /**
+     * Arrête la lecture
+     */
     public void stop() {
         if (player != null) {
             player.close();
@@ -144,12 +164,17 @@ public class AudioPlayer {
         }
     }
 
+    /**
+     * Vérifie si une lecture est en cours
+     */
     public boolean isPlaying() {
         return isPlaying;
     }
 
+    /**
+     * Vérifie si la lecture est en pause
+     */
     public boolean isPaused() {
         return isPaused;
     }
-
 }

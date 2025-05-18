@@ -1,6 +1,7 @@
 package client.ui;
 
 import client.commands.*;
+import playback.AudioPlayer;
 import playback.PlaybackService;
 import playback.RepeatPlayState;
 import playback.SequentialPlayState;
@@ -26,6 +27,13 @@ public class PlayerUI {
     private Scanner scanner;
     private CommandInvoker commandInvoker;
     private PlaybackService playbackService;
+    private AudioPlayer audioPlayer;
+
+    // Variables pour gérer l'état de lecture
+    private boolean isPlaying = false;
+    private boolean isPaused = false;
+    private long pausePosition = 0;
+    private String currentSongTitle = null;
 
     /**
      * Constructeur
@@ -36,6 +44,7 @@ public class PlayerUI {
         this.out = out;
         this.scanner = scanner;
         this.commandInvoker = new CommandInvoker();
+        this.audioPlayer = new AudioPlayer();
     }
 
     /**
@@ -69,7 +78,7 @@ public class PlayerUI {
         out.println("GET_PLAYLIST_SONGS " + playlistName);
         response = in.readLine();
 
-        if (response.startsWith("ERROR")) {
+        if (!response.startsWith("SUCCESS")) {
             System.out.println("Error loading playlist: " + response);
             return;
         }
@@ -87,7 +96,7 @@ public class PlayerUI {
                 String genre = songData.length > 3 ? songData[3] : "Unknown";
                 int duration = songData.length > 4 && !songData[4].isEmpty() ? Integer.parseInt(songData[4]) : 0;
 
-                // Le chemin du fichier est la DERNIÈRE partie - assurez-vous qu'il n'est pas formaté comme une chaîne avec des séparateurs
+                // Le chemin du fichier est la DERNIÈRE partie
                 String filePath = songData.length > 5 ? songData[5] : null;
 
                 Song song = new Song(title, artist, album, genre, duration);
@@ -136,13 +145,10 @@ public class PlayerUI {
                 playbackService.setPlaybackMode(new SequentialPlayState());
         }
 
-        // Définir les commandes
-        CommandInvoker commandInvoker = new CommandInvoker();
-        commandInvoker.register("play", new PlayCommand(playbackService));
-        commandInvoker.register("pause", new PauseCommand(playbackService));
-        commandInvoker.register("stop", new StopCommand(playbackService));
-        commandInvoker.register("next", new NextCommand(playbackService));
-        commandInvoker.register("prev", new PrevCommand(playbackService));
+        // Réinitialiser l'état de lecture
+        isPlaying = false;
+        isPaused = false;
+        pausePosition = 0;
 
         // Boucle de contrôle
         String input;
@@ -154,20 +160,130 @@ public class PlayerUI {
             System.out.println("==================================================================================");
             input = scanner.nextLine().trim().toLowerCase();
 
-            if (input.equals("exit")) {
-                out.println("PLAYER_EXIT");
-                response = in.readLine(); // Lire la réponse mais ne pas l'afficher
-                System.out.println("Return to main menu..");
-                exitPlayer = true;
-            } else if (commandInvoker.hasCommand(input)) {
-                // Exécuter la commande localement
-                commandInvoker.execute(input);
+            switch (input) {
+                case "play":
+                    if (isPaused) {
+                        // Si on était en pause, reprendre la lecture
+                        out.println("PLAYER_PLAY resume");
+                        response = in.readLine();
+                        System.out.println(response);
+                        audioPlayer.resume();
+                        isPlaying = true;
+                        isPaused = false;
+                    } else {
+                        // Nouvelle lecture
+                        out.println("PLAYER_PLAY");
+                        response = in.readLine();
+                        System.out.println(response);
 
-                // Envoyer la commande au serveur et lire la réponse
-                out.println("PLAYER_" + input.toUpperCase());
-                response = in.readLine(); // Lire la réponse mais ne pas l'afficher
-            } else {
-                System.out.println("Unknown command.");
+                        // Obtenir la chanson actuelle et la jouer
+                        Song currentSong = playbackService.getCurrentSong();
+                        if (currentSong != null && currentSong.getFilePath() != null) {
+                            audioPlayer.play(currentSong.getFilePath());
+                            currentSongTitle = currentSong.getTitle();
+                        }
+
+                        isPlaying = true;
+                        isPaused = false;
+                        pausePosition = 0;
+                    }
+                    break;
+
+                case "pause":
+                    if (isPlaying) {
+                        out.println("PLAYER_PAUSE");
+                        response = in.readLine();
+                        System.out.println(response);
+
+                        // Pause du lecteur audio et récupération de sa position
+                        audioPlayer.pause();
+                        isPlaying = false;
+                        isPaused = true;
+                    } else {
+                        System.out.println("No music is playing.");
+                    }
+                    break;
+
+                case "stop":
+                    out.println("PLAYER_STOP");
+                    response = in.readLine();
+                    System.out.println(response);
+
+                    // Arrêt complet du lecteur
+                    audioPlayer.stop();
+                    isPlaying = false;
+                    isPaused = false;
+                    pausePosition = 0;
+                    break;
+
+                case "next":
+                    out.println("PLAYER_NEXT");
+                    response = in.readLine();
+                    System.out.println(response);
+
+                    // Arrêter la lecture actuelle
+                    audioPlayer.stop();
+
+                    // Passer à la chanson suivante
+                    playbackService.next();
+
+                    // Lecture automatique de la nouvelle chanson
+                    Song nextSong = playbackService.getCurrentSong();
+                    if (nextSong != null && nextSong.getFilePath() != null) {
+                        audioPlayer.play(nextSong.getFilePath());
+                        currentSongTitle = nextSong.getTitle();
+                    }
+
+                    isPlaying = true;
+                    isPaused = false;
+                    pausePosition = 0;
+                    break;
+
+                case "prev":
+                    out.println("PLAYER_PREV");
+                    response = in.readLine();
+                    System.out.println(response);
+
+                    // Arrêter la lecture actuelle
+                    audioPlayer.stop();
+
+                    // Revenir à la chanson précédente
+                    playbackService.previous();
+
+                    // Lecture automatique de la nouvelle chanson
+                    Song prevSong = playbackService.getCurrentSong();
+                    if (prevSong != null && prevSong.getFilePath() != null) {
+                        audioPlayer.play(prevSong.getFilePath());
+                        currentSongTitle = prevSong.getTitle();
+                    }
+
+                    isPlaying = true;
+                    isPaused = false;
+                    pausePosition = 0;
+                    break;
+
+                case "exit":
+                    // Important: Arrêter la lecture avant de quitter
+                    if (isPlaying || isPaused) {
+                        audioPlayer.stop();
+                        out.println("PLAYER_STOP");
+                        in.readLine(); // Consommer la réponse
+                    }
+
+                    out.println("PLAYER_EXIT");
+                    response = in.readLine();
+                    System.out.println("Return to main menu..");
+
+                    // Réinitialiser l'état
+                    isPlaying = false;
+                    isPaused = false;
+                    pausePosition = 0;
+                    currentSongTitle = null;
+                    exitPlayer = true;
+                    break;
+
+                default:
+                    System.out.println("Unknown command.");
             }
         }
     }
@@ -189,55 +305,5 @@ public class PlayerUI {
         if (!response.startsWith("SUCCESS")) {
             System.out.println("Unknown mode. Sequential mode selected by default.");
         }
-    }
-
-    /**
-     * Enregistre les commandes dans l'invocateur
-     */
-    private void registerCommands() {
-        commandInvoker.register("play", new PlayCommand(playbackService));
-        commandInvoker.register("pause", new PauseCommand(playbackService));
-        commandInvoker.register("stop", new StopCommand(playbackService));
-        commandInvoker.register("next", new NextCommand(playbackService));
-        commandInvoker.register("prev", new PrevCommand(playbackService));
-    }
-
-    /**
-     * Exécute la boucle de contrôle du lecteur
-     */
-    private void runPlayerControlLoop() throws IOException {
-        String input;
-        boolean exitPlayer = false;
-
-        while (!exitPlayer) {
-            System.out.println("==================================================================================");
-            System.out.println("Enter a command (play, pause, stop, next, prev, exit): ");
-            System.out.println("==================================================================================");
-            input = scanner.nextLine().trim().toLowerCase();
-
-            if (input.equals("exit")) {
-                out.println("PLAYER_EXIT");
-                System.out.println("Return to main menu..");
-                exitPlayer = true;
-            } else if (commandInvoker.hasCommand(input)) {
-                // Exécuter la commande localement
-                commandInvoker.execute(input);
-
-                // Envoyer la commande au serveur
-                out.println("PLAYER_" + input.toUpperCase());
-                System.out.println(in.readLine());
-            } else {
-                System.out.println("Unknown command.");
-            }
-        }
-    }
-
-    /**
-     * Récupère l'utilisateur depuis le serveur
-     */
-    private User getUserFromServer() {
-        // Cette méthode est un placeholder
-        // Dans une implémentation réelle, vous récupéreriez l'utilisateur depuis le serveur
-        return null;
     }
 }
