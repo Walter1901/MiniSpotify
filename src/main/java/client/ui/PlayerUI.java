@@ -8,7 +8,8 @@ import playback.SequentialPlayState;
 import playback.ShufflePlayState;
 import server.music.DoublyLinkedPlaylist;
 import server.music.Song;
-import users.User;
+import client.ui.UserInterface;
+
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -267,14 +268,29 @@ public class PlayerUI {
                     if (isPlaying || isPaused) {
                         audioPlayer.stop();
                         out.println("PLAYER_STOP");
-                        in.readLine(); // Consommer la réponse
+                        try {
+                            String stopResponse = in.readLine();
+                            System.out.println("Stop response: " + stopResponse);
+                        } catch (Exception e) {
+                            System.err.println("Error reading stop response: " + e.getMessage());
+                            // Continue despite error
+                        }
                     }
 
+                    // Notifier le serveur de la sortie du mode player
                     out.println("PLAYER_EXIT");
-                    response = in.readLine();
+
+                    try {
+                        response = in.readLine();
+                        System.out.println("Exit player response: " + response);
+                    } catch (Exception e) {
+                        System.err.println("Error reading exit response: " + e.getMessage());
+                        // Continue despite error
+                    }
+
                     System.out.println("Return to main menu..");
 
-                    // Réinitialiser l'état
+                    // Réinitialiser l'état sans dépendre des réponses du serveur
                     isPlaying = false;
                     isPaused = false;
                     pausePosition = 0;

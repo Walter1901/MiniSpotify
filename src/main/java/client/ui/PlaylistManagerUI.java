@@ -38,7 +38,8 @@ public class PlaylistManagerUI {
             System.out.println("2. Display my playlists");
             System.out.println("3. Add a song to a playlist");
             System.out.println("4. Delete a song from a playlist");
-            System.out.println("5. Back");
+            System.out.println("5. Reorder songs in a playlist");  // Nouvelle option
+            System.out.println("6. Back");  // Modifié de 5 à 6
             System.out.println("==================================================================================");
             System.out.print("Choose an option: ");
             String option = scanner.nextLine().trim();
@@ -56,7 +57,10 @@ public class PlaylistManagerUI {
                 case "4":
                     removeSongFromPlaylist();
                     break;
-                case "5":
+                case "5":  // Nouvelle option
+                    reorderSongsInPlaylist();
+                    break;
+                case "6":  // Modifié de 5 à 6
                     back = true;
                     break;
                 default:
@@ -99,17 +103,56 @@ public class PlaylistManagerUI {
         out.println("GET_PLAYLISTS");
 
         String response;
-        boolean hasPlaylists = false;
+        List<String> playlists = new ArrayList<>();
         while (!(response = in.readLine()).equals("END")) {
-            hasPlaylists = true;
-            System.out.println(response);
+            playlists.add(response);
         }
 
-        if (!hasPlaylists) {
+        if (playlists.isEmpty()) {
             System.out.println("==================================================================================");
             System.out.println("No playlist created.");
             System.out.println("==================================================================================");
+            return;
         }
+
+        // Afficher chaque playlist avec ses chansons
+        for (String playlistName : playlists) {
+            System.out.println("==================================================================================");
+            System.out.println("Playlist: " + playlistName);
+            System.out.println("==================================================================================");
+
+            // Récupérer les chansons de cette playlist
+            out.println("GET_PLAYLIST_SONGS " + playlistName);
+            response = in.readLine();
+
+            if (!response.startsWith("SUCCESS")) {
+                System.out.println("Error retrieving songs: " + response);
+                continue;
+            }
+
+            List<String> songs = new ArrayList<>();
+            while (!(response = in.readLine()).equals("END")) {
+                songs.add(response);
+            }
+
+            // Afficher les chansons
+            if (songs.isEmpty()) {
+                System.out.println("This playlist is empty.");
+            } else {
+                System.out.println("Songs:");
+                int index = 0;
+                for (String song : songs) {
+                    String[] parts = song.split("\\|");
+                    if (parts.length > 0) {
+                        String title = parts[0];
+                        String artist = parts.length > 1 ? parts[1] : "Unknown";
+                        System.out.println(index + ": " + title + " by " + artist);
+                        index++;
+                    }
+                }
+            }
+        }
+        System.out.println("==================================================================================");
     }
 
     /**
@@ -254,6 +297,100 @@ public class PlaylistManagerUI {
 
         System.out.println("==================================================================================");
         System.out.println(response);
+        System.out.println("==================================================================================");
+    }
+
+    private void reorderSongsInPlaylist() throws IOException {
+        System.out.println("==================================================================================");
+        System.out.println("Enter the name of the playlist: ");
+        String playlistName = scanner.nextLine().trim();
+        System.out.println("==================================================================================");
+
+        // Vérifier d'abord si la playlist existe
+        out.println("CHECK_PLAYLIST " + playlistName);
+        String response = in.readLine();
+
+        if ("PLAYLIST_NOT_FOUND".equals(response)) {
+            System.out.println("==================================================================================");
+            System.out.println("Playlist not found.");
+            System.out.println("==================================================================================");
+            return;
+        }
+
+        // Récupérer les chansons de la playlist
+        out.println("GET_PLAYLIST_SONGS " + playlistName);
+        response = in.readLine();
+
+        if (!response.startsWith("SUCCESS")) {
+            System.out.println("==================================================================================");
+            System.out.println(response);
+            System.out.println("==================================================================================");
+            return;
+        }
+
+        // Stocker les chansons pour pouvoir les référencer par index
+        List<String> songTitles = new ArrayList<>();
+        System.out.println("==================================================================================");
+        System.out.println("Songs in playlist " + playlistName + ":");
+        System.out.println("==================================================================================");
+
+        while (!(response = in.readLine()).equals("END")) {
+            // Format attendu: titre|artiste|album|genre|durée|chemin
+            String[] parts = response.split("\\|");
+            if (parts.length > 0) {
+                String title = parts[0];
+                songTitles.add(title);
+                String artist = parts.length > 1 ? parts[1] : "Unknown";
+                System.out.println((songTitles.size() - 1) + ": " + title + " by " + artist);
+            }
+        }
+
+        if (songTitles.isEmpty()) {
+            System.out.println("==================================================================================");
+            System.out.println("No songs in this playlist.");
+            System.out.println("==================================================================================");
+            return;
+        }
+
+        // Demander quelle chanson déplacer
+        System.out.println("==================================================================================");
+        System.out.println("Enter the index of the song to move: ");
+        int fromIndex;
+        try {
+            fromIndex = Integer.parseInt(scanner.nextLine().trim());
+            if (fromIndex < 0 || fromIndex >= songTitles.size()) {
+                System.out.println("Invalid index.");
+                return;
+            }
+        } catch (NumberFormatException e) {
+            System.out.println("Please enter a valid number.");
+            return;
+        }
+
+        // Demander à quelle position la déplacer
+        System.out.println("Enter the new position for the song (0 to " + (songTitles.size() - 1) + "): ");
+        int toIndex;
+        try {
+            toIndex = Integer.parseInt(scanner.nextLine().trim());
+            if (toIndex < 0 || toIndex >= songTitles.size()) {
+                System.out.println("Invalid position.");
+                return;
+            }
+        } catch (NumberFormatException e) {
+            System.out.println("Please enter a valid number.");
+            return;
+        }
+
+        // Envoyer la commande au serveur
+        out.println("REORDER_PLAYLIST_SONG " + playlistName + " " + fromIndex + " " + toIndex);
+        response = in.readLine();
+
+        System.out.println("==================================================================================");
+        if (response.startsWith("SUCCESS")) {
+            System.out.println("Song successfully moved.");
+        } else {
+            System.out.println("Error: " + response);
+        }
         System.out.println("==================================================================================");
     }
 }

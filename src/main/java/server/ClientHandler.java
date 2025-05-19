@@ -59,6 +59,7 @@ public class ClientHandler implements Runnable {
         commandFactories.put("CHECK_PLAYLIST", this::checkPlaylistCommand);
         commandFactories.put("ADD_SONG_TO_PLAYLIST", this::addSongToPlaylistCommand);
         commandFactories.put("REMOVE_SONG_FROM_PLAYLIST", this::removeSongFromPlaylistCommand);
+        commandFactories.put("REORDER_PLAYLIST_SONG", this::reorderPlaylistSongCommand);
 
         // Commandes de bibliothèque musicale
         commandFactories.put("GET_PLAYLIST_SONGS", this::getPlaylistSongsCommand);
@@ -441,6 +442,61 @@ public class ClientHandler implements Runnable {
                 return true;
             } else {
                 out.println(ServerProtocol.RESP_ERROR + ": Song not found in playlist");
+                return false;
+            }
+        };
+    }
+    private ServerCommand reorderPlaylistSongCommand(String args) {
+        return out -> {
+            if (loggedInUser == null) {
+                out.println(ServerProtocol.RESP_ERROR + ": Not logged in");
+                return false;
+            }
+
+            String[] parts = args.split(" ");
+            if (parts.length != 3) {
+                out.println(ServerProtocol.RESP_ERROR + ": Invalid arguments. Expected: REORDER_PLAYLIST_SONG playlistName fromIndex toIndex");
+                return false;
+            }
+
+            try {
+                String playlistName = parts[0];
+                int fromIndex = Integer.parseInt(parts[1]);
+                int toIndex = Integer.parseInt(parts[2]);
+
+                // Trouver la playlist
+                Playlist foundPlaylist = null;
+                for (Playlist p : loggedInUser.getPlaylists()) {
+                    if (p.getName().equalsIgnoreCase(playlistName)) {
+                        foundPlaylist = p;
+                        break;
+                    }
+                }
+
+                if (foundPlaylist == null) {
+                    out.println(ServerProtocol.RESP_ERROR + ": Playlist not found");
+                    return false;
+                }
+
+                // Vérifier les indices
+                if (fromIndex < 0 || toIndex < 0 || fromIndex >= foundPlaylist.size() || toIndex >= foundPlaylist.size()) {
+                    out.println(ServerProtocol.RESP_ERROR + ": Invalid indices");
+                    return false;
+                }
+
+                // Déplacer la chanson
+                foundPlaylist.moveSong(fromIndex, toIndex);
+
+                // Mettre à jour la persistance
+                UserPersistenceManager.updateUser(loggedInUser);
+
+                out.println(ServerProtocol.RESP_SUCCESS + ": Song reordered");
+                return true;
+            } catch (NumberFormatException e) {
+                out.println(ServerProtocol.RESP_ERROR + ": Invalid indices format");
+                return false;
+            } catch (Exception e) {
+                out.println(ServerProtocol.RESP_ERROR + ": " + e.getMessage());
                 return false;
             }
         };
