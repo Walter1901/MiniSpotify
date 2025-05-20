@@ -12,7 +12,7 @@ public class FreeUser extends User {
 
     @Override
     public boolean canAddPlaylist() {
-        return playlists.size() < 1;
+        return playlists.size() < 2; // Augmenter la limite à 2 pour permettre 1 normale et 1 collaborative
     }
 
     @Override

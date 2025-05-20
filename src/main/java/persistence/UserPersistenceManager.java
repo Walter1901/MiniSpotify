@@ -9,6 +9,8 @@ import users.FreeUser;
 import users.PremiumUser;
 
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.*;
 
 public class UserPersistenceManager {
@@ -18,19 +20,42 @@ public class UserPersistenceManager {
     // Load all users from the JSON file
     public static List<User> loadUsers() {
         List<User> users = new ArrayList<>();
+        File file = new File(USERS_FILE);
+
         try {
-            File file = new File(USERS_FILE);
+            // Si le fichier n'existe pas, le créer avec un tableau vide
             if (!file.exists()) {
-                file.createNewFile();
-                // Créer un tableau JSON vide et l'écrire dans le fichier
-                try (Writer writer = new FileWriter(USERS_FILE)) {
-                    writer.write("[]");
-                }
+                System.out.println("Users file does not exist. Creating new file: " + USERS_FILE);
+                createEmptyUsersFile();
+                return users;
+            }
+
+            // Vérifier si le fichier est vide
+            if (file.length() == 0) {
+                System.out.println("Users file is empty. Initializing with empty array.");
+                createEmptyUsersFile();
                 return users;
             }
 
             try (Reader reader = new FileReader(USERS_FILE)) {
-                JsonArray jsonArray = JsonParser.parseReader(reader).getAsJsonArray();
+                // Tenter de lire le fichier en tant que JsonElement pour validation
+                JsonElement rootElement = JsonParser.parseReader(reader);
+
+                // Vérifier si l'élément racine est null
+                if (rootElement == null) {
+                    System.out.println("Invalid JSON file. Reinitializing with empty array.");
+                    createEmptyUsersFile();
+                    return users;
+                }
+
+                // Vérifier si l'élément est un tableau
+                if (!rootElement.isJsonArray()) {
+                    System.out.println("JSON file does not contain an array. Reinitializing with empty array.");
+                    createEmptyUsersFile();
+                    return users;
+                }
+
+                JsonArray jsonArray = rootElement.getAsJsonArray();
 
                 // Créer un adaptateur pour les playlists
                 GsonBuilder gsonBuilder = new GsonBuilder();
@@ -38,78 +63,136 @@ public class UserPersistenceManager {
                 Gson gson = gsonBuilder.create();
 
                 for (JsonElement element : jsonArray) {
-                    JsonObject obj = element.getAsJsonObject();
-                    if (obj.get("username") == null || obj.get("passwordHash") == null || obj.get("accountType") == null) {
-                        System.err.println("Entrée utilisateur incomplète ou corrompue dans users.json, ignorée.");
-                        continue;
-                    }
+                    try {
+                        JsonObject obj = element.getAsJsonObject();
+                        if (obj.get("username") == null || obj.get("passwordHash") == null || obj.get("accountType") == null) {
+                            System.err.println("Incomplete or corrupt user entry in users.json, skipped.");
+                            continue;
+                        }
 
-                    String username = obj.get("username").getAsString();
-                    String passwordHash = obj.get("passwordHash").getAsString();
-                    String accountType = obj.get("accountType").getAsString();
+                        String username = obj.get("username").getAsString();
+                        String passwordHash = obj.get("passwordHash").getAsString();
+                        String accountType = obj.get("accountType").getAsString();
 
-                    User user;
-                    if ("free".equalsIgnoreCase(accountType)) {
-                        user = new FreeUser(username, passwordHash);
-                    } else if ("premium".equalsIgnoreCase(accountType)) {
-                        user = new PremiumUser(username, passwordHash);
-                    } else {
-                        continue; // Type de compte inconnu
-                    }
+                        User user;
+                        if ("free".equalsIgnoreCase(accountType)) {
+                            user = new FreeUser(username, passwordHash);
+                        } else if ("premium".equalsIgnoreCase(accountType)) {
+                            user = new PremiumUser(username, passwordHash);
+                        } else {
+                            continue; // Unknown account type
+                        }
 
-                    // Charger les playlists si présentes
-                    if (obj.has("playlists") && obj.get("playlists").isJsonArray()) {
-                        JsonArray playlistsArray = obj.getAsJsonArray("playlists");
-                        for (JsonElement playlistElement : playlistsArray) {
-                            try {
-                                Playlist playlist = gson.fromJson(playlistElement, Playlist.class);
-                                user.addPlaylist(playlist);
-                            } catch (Exception e) {
-                                System.err.println("Erreur lors du chargement d'une playlist: " + e.getMessage());
+                        // Load playlists if present
+                        if (obj.has("playlists") && obj.get("playlists").isJsonArray()) {
+                            JsonArray playlistsArray = obj.getAsJsonArray("playlists");
+                            for (JsonElement playlistElement : playlistsArray) {
+                                try {
+                                    Playlist playlist = gson.fromJson(playlistElement, Playlist.class);
+                                    user.addPlaylist(playlist);
+                                } catch (Exception e) {
+                                    System.err.println("Error loading a playlist: " + e.getMessage());
+                                }
                             }
                         }
-                    }
 
-                    users.add(user);
+                        users.add(user);
+                    } catch (Exception e) {
+                        System.err.println("Error processing user entry: " + e.getMessage());
+                    }
                 }
             }
         } catch (IOException | JsonSyntaxException e) {
             System.err.println("Error loading users: " + e.getMessage());
+            // Try to recover by creating a new empty file
+            createEmptyUsersFile();
         }
 
         return users;
     }
 
+    /**
+     * Create an empty users.json file with an empty JSON array
+     */
+    private static void createEmptyUsersFile() {
+        try (Writer writer = new FileWriter(USERS_FILE)) {
+            writer.write("[]");
+            System.out.println("Created empty users file: " + USERS_FILE);
+        } catch (IOException e) {
+            System.err.println("Failed to create empty users file: " + e.getMessage());
+        }
+    }
+
     // Save all users to the JSON file
     public static void saveUsers(List<User> users) {
-        try (Writer writer = new FileWriter(USERS_FILE)) {
-            // Créer un adaptateur pour les playlists
-            GsonBuilder gsonBuilder = new GsonBuilder().setPrettyPrinting();
-            gsonBuilder.registerTypeAdapter(Playlist.class, new PlaylistAdapter());
-            Gson gson = gsonBuilder.create();
+        // Créer un fichier temporaire pour l'écriture
+        File tempFile = new File(USERS_FILE + ".tmp");
+        File originalFile = new File(USERS_FILE);
 
-            JsonArray userArray = new JsonArray();
-            for (User user : users) {
-                JsonObject obj = new JsonObject();
-                obj.addProperty("username", user.getUsername());
-                obj.addProperty("passwordHash", user.getPasswordHash());
-                obj.addProperty("accountType", user.getAccountType());
+        try {
+            // Écrire d'abord dans le fichier temporaire
+            try (Writer writer = new FileWriter(tempFile)) {
+                GsonBuilder gsonBuilder = new GsonBuilder().setPrettyPrinting();
+                gsonBuilder.registerTypeAdapter(Playlist.class, new PlaylistAdapter());
+                Gson gson = gsonBuilder.create();
 
-                // Sauvegarder les playlists
-                if (!user.getPlaylists().isEmpty()) {
-                    JsonArray playlistsArray = new JsonArray();
-                    for (Playlist playlist : user.getPlaylists()) {
-                        JsonElement playlistElement = gson.toJsonTree(playlist);
-                        playlistsArray.add(playlistElement);
+                JsonArray userArray = new JsonArray();
+                for (User user : users) {
+                    JsonObject obj = new JsonObject();
+                    obj.addProperty("username", user.getUsername());
+                    obj.addProperty("passwordHash", user.getPasswordHash());
+                    obj.addProperty("accountType", user.getAccountType());
+
+                    // Sauvegarder les playlists
+                    if (!user.getPlaylists().isEmpty()) {
+                        JsonArray playlistsArray = new JsonArray();
+                        for (Playlist playlist : user.getPlaylists()) {
+                            JsonElement playlistElement = gson.toJsonTree(playlist);
+                            playlistsArray.add(playlistElement);
+                        }
+                        obj.add("playlists", playlistsArray);
                     }
-                    obj.add("playlists", playlistsArray);
+
+                    userArray.add(obj);
+                }
+                gson.toJson(userArray, writer);
+                writer.flush(); // S'assurer que toutes les données sont écrites
+            }
+
+            // Vérifier que le fichier temporaire existe et a une taille correcte
+            if (tempFile.exists() && tempFile.length() > 0) {
+                // Faire une sauvegarde du fichier original (si besoin)
+                File backupFile = new File(USERS_FILE + ".bak");
+                if (originalFile.exists()) {
+                    Files.copy(originalFile.toPath(), backupFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
                 }
 
-                userArray.add(obj);
+                // Remplacer le fichier original par le fichier temporaire
+                Files.move(tempFile.toPath(), originalFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+
+                // Supprimer la sauvegarde après un remplacement réussi (optionnel)
+                // backupFile.delete();
+            } else {
+                throw new IOException("Failed to write temporary file or file is empty");
             }
-            gson.toJson(userArray, writer);
         } catch (IOException e) {
             System.err.println("Error saving users: " + e.getMessage());
+
+            // En cas d'erreur, restaurer la sauvegarde si elle existe
+            File backupFile = new File(USERS_FILE + ".bak");
+            if (backupFile.exists() && originalFile.exists() && originalFile.length() == 0) {
+                try {
+                    Files.copy(backupFile.toPath(), originalFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                    System.out.println("Restored backup file after error.");
+                } catch (IOException restoreError) {
+                    System.err.println("Failed to restore backup: " + restoreError.getMessage());
+                }
+            }
+
+            // Supprimer le fichier temporaire s'il existe encore
+            if (tempFile.exists()) {
+                tempFile.delete();
+            }
         }
     }
 

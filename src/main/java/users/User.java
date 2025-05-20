@@ -9,6 +9,7 @@ public abstract class User {
     protected String passwordHash;
     protected List<Playlist> playlists = new ArrayList<>();
     protected List<User> followedUsers = new ArrayList<>();
+    protected boolean sharePlaylistsPublicly = false; // Option pour partager les playlists publiquement
 
     public User(String username, String passwordHash) {
         this.username = username;
@@ -24,18 +25,40 @@ public abstract class User {
     }
 
     public void follow(User user) {
-        if (!followedUsers.contains(user)) {
+        if (user != null && !followedUsers.contains(user) && !user.equals(this)) {
             followedUsers.add(user);
         }
     }
 
+    public void unfollow(User user) {
+        followedUsers.remove(user);
+    }
+
+    public boolean isFollowing(User user) {
+        return followedUsers.contains(user);
+    }
+
+    public boolean isFollowing(String username) {
+        return followedUsers.stream()
+                .anyMatch(user -> user.getUsername().equals(username));
+    }
+
     public List<User> getFollowedUsers() {
-        return followedUsers;
+        return new ArrayList<>(followedUsers); // Copie défensive
+    }
+
+    public void setSharePlaylistsPublicly(boolean sharePlaylistsPublicly) {
+        this.sharePlaylistsPublicly = sharePlaylistsPublicly;
+    }
+
+    public boolean arePlaylistsSharedPublicly() {
+        return sharePlaylistsPublicly;
     }
 
     public abstract String getAccountType();
 
     public abstract boolean canAddPlaylist();
+
     public abstract boolean canUseShuffle();
 
     public String getUsername() {
@@ -56,5 +79,25 @@ public abstract class User {
         } else {
             System.out.println("Playlist limit reached for this user.");
         }
+    }
+
+    public Playlist getPlaylistByName(String name) {
+        return playlists.stream()
+                .filter(p -> p.getName().equalsIgnoreCase(name))
+                .findFirst()
+                .orElse(null);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (obj == null || getClass() != obj.getClass()) return false;
+        User other = (User) obj;
+        return username.equals(other.username);
+    }
+
+    @Override
+    public int hashCode() {
+        return username.hashCode();
     }
 }

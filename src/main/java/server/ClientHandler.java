@@ -11,6 +11,7 @@ import persistence.UserPersistenceManager;
 import server.command.ServerCommand;
 import server.music.MusicLibrary;
 import server.music.Playlist;
+import server.music.CollaborativePlaylist;
 import server.music.Song;
 import server.protocol.ServerProtocol;
 import users.FreeUser;
@@ -30,6 +31,13 @@ public class ClientHandler implements Runnable {
     // Map des commandes implémentant le Command Factory Pattern
     private Map<String, CommandFactory> commandFactories;
 
+    // Variable pour le timer de session
+    private java.util.Timer sessionTimer;
+    // Durée d'inactivité maximale avant expiration de session (30 minutes en millisecondes)
+    private static final long SESSION_TIMEOUT = 30 * 60 * 1000;
+    // Dernier temps d'activité de l'utilisateur
+    private long lastActivityTime;
+
     /**
      * Constructeur
      */
@@ -37,7 +45,6 @@ public class ClientHandler implements Runnable {
         this.socket = socket;
         initializeCommandFactories();
     }
-
 
     /**
      * Initialise les fabriques de commandes
@@ -60,6 +67,7 @@ public class ClientHandler implements Runnable {
         commandFactories.put("ADD_SONG_TO_PLAYLIST", this::addSongToPlaylistCommand);
         commandFactories.put("REMOVE_SONG_FROM_PLAYLIST", this::removeSongFromPlaylistCommand);
         commandFactories.put("REORDER_PLAYLIST_SONG", this::reorderPlaylistSongCommand);
+        commandFactories.put("CREATE_COLLAB_PLAYLIST", this::createCollabPlaylistCommand);
 
         // Commandes de bibliothèque musicale
         commandFactories.put("GET_PLAYLIST_SONGS", this::getPlaylistSongsCommand);
@@ -76,8 +84,17 @@ public class ClientHandler implements Runnable {
         commandFactories.put("PLAYER_NEXT", args -> playerNextCommand(args));
         commandFactories.put("PLAYER_PREV", args -> playerPrevCommand(args));
         commandFactories.put("PLAYER_EXIT", args -> playerExitCommand(args));
-    }
 
+        // Commandes sociales
+        commandFactories.put("FOLLOW_USER", this::followUserCommand);
+        commandFactories.put("UNFOLLOW_USER", this::unfollowUserCommand);
+        commandFactories.put("GET_FOLLOWED_USERS", this::getFollowedUsersCommand);
+        commandFactories.put("GET_SHARED_PLAYLISTS", this::getSharedPlaylistsCommand);
+        commandFactories.put("GET_SHARED_PLAYLIST_SONGS", this::getSharedPlaylistSongsCommand);
+        commandFactories.put("COPY_SHARED_PLAYLIST", this::copySharedPlaylistCommand);
+        commandFactories.put("LOAD_SHARED_PLAYLIST", this::loadSharedPlaylistCommand);
+        commandFactories.put("SET_PLAYLIST_SHARING", this::setPlaylistSharingCommand);
+    }
 
     @Override
     public void run() {
@@ -87,13 +104,37 @@ public class ClientHandler implements Runnable {
 
             out.println("🎵 Welcome to MiniSpotify server!");
 
+            // Démarrer le timer pour surveiller la session
+            startSessionTimer();
+
             String line;
             while ((line = in.readLine()) != null) {
                 System.out.println("DEBUG: Received command -> " + line);
-                processCommand(line);
+
+                // Rafraîchir le dernier temps d'activité
+                lastActivityTime = System.currentTimeMillis();
+
+                try {
+                    processCommand(line);
+                } catch (Exception e) {
+                    System.err.println("Error processing command '" + line + "': " + e.getMessage());
+                    e.printStackTrace();
+                    // Envoyer un message d'erreur au client mais ne pas interrompre la connexion
+                    out.println("ERROR: Server error processing your request");
+                }
             }
+
+            // Si on sort de la boucle normalement, c'est que le client s'est déconnecté proprement
+            System.out.println("DEBUG: Client disconnected normally");
         } catch (IOException e) {
-            System.err.println("Error in client handler: " + e.getMessage());
+            System.err.println("Connection error in client handler: " + e.getMessage());
+            // Ne pas afficher la stack trace pour les erreurs de connexion ordinaires
+            if (!(e instanceof java.net.SocketException)) {
+                e.printStackTrace();
+            }
+        } catch (Exception e) {
+            System.err.println("Unexpected error in client handler: " + e.getMessage());
+            e.printStackTrace();
         } finally {
             closeResources();
         }
@@ -121,9 +162,18 @@ public class ClientHandler implements Runnable {
      */
     private void closeResources() {
         try {
+            // Arrêter le timer s'il existe
+            if (sessionTimer != null) {
+                sessionTimer.cancel();
+                sessionTimer = null;
+            }
+
+            // Fermer les flux et la socket
             if (in != null) in.close();
             if (out != null) out.close();
             if (socket != null && !socket.isClosed()) socket.close();
+
+            System.out.println("DEBUG: Resources closed and cleaned up");
         } catch (IOException e) {
             System.err.println("Error closing resources: " + e.getMessage());
         }
@@ -263,6 +313,72 @@ public class ClientHandler implements Runnable {
                 }
             } else {
                 out.println("CREATE_PLAYLIST_FAIL Limit reached");
+                return false;
+            }
+        };
+    }
+
+    /**
+     * Crée une commande pour créer une playlist collaborative
+     */
+    private ServerCommand createCollabPlaylistCommand(String args) {
+        return out -> {
+            // Vérifier l'état de la session avant de traiter la commande
+            checkUserSession();
+
+            if (loggedInUser == null) {
+                out.println("CREATE_COLLAB_PLAYLIST_FAIL No user logged in");
+                return false;
+            }
+
+            String[] parts = args.split(" ", 2);
+            if (parts.length < 1) {
+                out.println("CREATE_COLLAB_PLAYLIST_FAIL Invalid format");
+                return false;
+            }
+
+            String playlistName = parts[0];
+            System.out.println("DEBUG: Creating collaborative playlist: '" + playlistName + "'");
+
+            // Vérification importante: pour les playlists collaboratives, utiliser la même vérification
+            // que les playlists normales pour la limite - c'est là que se trouve le problème
+            if (loggedInUser.canAddPlaylist()) {
+                boolean exists = loggedInUser.getPlaylists().stream()
+                        .anyMatch(p -> p.getName().equalsIgnoreCase(playlistName));
+
+                if (!exists) {
+                    // Créer une playlist collaborative
+                    CollaborativePlaylist playlist = new CollaborativePlaylist(playlistName, loggedInUser);
+
+                    // Collaborateurs (s'il y en a)
+                    if (parts.length > 1) {
+                        String[] collaboratorNames = parts[1].split(",");
+                        for (String collaboratorName : collaboratorNames) {
+                            collaboratorName = collaboratorName.trim();
+                            if (!collaboratorName.isEmpty()) {
+                                User collaborator = UserPersistenceManager.getUserByUsername(collaboratorName);
+                                if (collaborator != null) {
+                                    playlist.addCollaborator(collaborator);
+                                    System.out.println("DEBUG: Added collaborator: " + collaboratorName);
+                                }
+                            }
+                        }
+                    }
+
+                    loggedInUser.addPlaylist(playlist);
+
+                    // Mettre à jour l'utilisateur dans le système de persistance
+                    UserPersistenceManager.updateUser(loggedInUser);
+
+                    System.out.println("DEBUG: Collaborative playlist created: '" + playlistName + "'");
+                    out.println("COLLAB_PLAYLIST_CREATED");
+                    return true;
+                } else {
+                    out.println("CREATE_COLLAB_PLAYLIST_FAIL Playlist already exists");
+                    return false;
+                }
+            } else {
+                out.println("CREATE_COLLAB_PLAYLIST_FAIL Limit reached");
                 return false;
             }
         };
@@ -446,6 +562,7 @@ public class ClientHandler implements Runnable {
             }
         };
     }
+
     private ServerCommand reorderPlaylistSongCommand(String args) {
         return out -> {
             if (loggedInUser == null) {
@@ -620,7 +737,6 @@ public class ClientHandler implements Runnable {
         };
     }
 
-
     /**
      * Gère la commande de lecture (play)
      */
@@ -748,7 +864,6 @@ public class ClientHandler implements Runnable {
         };
     }
 
-
     /**
      * Crée une commande pour récupérer toutes les chansons
      */
@@ -800,5 +915,375 @@ public class ClientHandler implements Runnable {
             out.println(ServerProtocol.RESP_END);
             return true;
         };
+    }
+
+    // Commandes sociales
+
+    private ServerCommand followUserCommand(String args) {
+        return out -> {
+            if (loggedInUser == null) {
+                out.println("ERROR: Not logged in");
+                return false;
+            }
+
+            String usernameToFollow = args.trim();
+
+            // Vérifier que l'utilisateur ne se suit pas lui-même
+            if (loggedInUser.getUsername().equals(usernameToFollow)) {
+                out.println("ERROR: You cannot follow yourself");
+                return false;
+            }
+
+            // Vérifier si l'utilisateur existe
+            User userToFollow = UserPersistenceManager.getUserByUsername(usernameToFollow);
+            if (userToFollow == null) {
+                out.println("ERROR: User not found");
+                return false;
+            }
+
+            // Vérifier si l'utilisateur est déjà suivi
+            if (loggedInUser.isFollowing(usernameToFollow)) {
+                out.println("INFO: You are already following this user");
+                return true;
+            }
+
+            // Suivre l'utilisateur
+            loggedInUser.follow(userToFollow);
+
+            // Mettre à jour la persistance
+            UserPersistenceManager.updateUser(loggedInUser);
+
+            out.println("SUCCESS: You are now following " + usernameToFollow);
+            return true;
+        };
+    }
+
+    private ServerCommand unfollowUserCommand(String args) {
+        return out -> {
+            if (loggedInUser == null) {
+                out.println("ERROR: Not logged in");
+                return false;
+            }
+
+            String usernameToUnfollow = args.trim();
+
+            // Vérifier si l'utilisateur existe
+            User userToUnfollow = UserPersistenceManager.getUserByUsername(usernameToUnfollow);
+            if (userToUnfollow == null) {
+                out.println("ERROR: User not found");
+                return false;
+            }
+
+            // Vérifier si l'utilisateur est suivi
+            if (!loggedInUser.isFollowing(usernameToUnfollow)) {
+                out.println("INFO: You are not following this user");
+                return true;
+            }
+
+            // Ne plus suivre l'utilisateur
+            loggedInUser.unfollow(userToUnfollow);
+
+            // Mettre à jour la persistance
+            UserPersistenceManager.updateUser(loggedInUser);
+
+            out.println("SUCCESS: You are no longer following " + usernameToUnfollow);
+            return true;
+        };
+    }
+
+    private ServerCommand getFollowedUsersCommand(String args) {
+        return out -> {
+            if (loggedInUser == null) {
+                out.println("ERROR: Not logged in");
+                out.println("END");
+                return false;
+            }
+
+            List<User> followedUsers = loggedInUser.getFollowedUsers();
+
+            if (followedUsers.isEmpty()) {
+                out.println("END");
+                return true;
+            }
+
+            // Envoyer la liste des utilisateurs suivis
+            for (User user : followedUsers) {
+                out.println(user.getUsername());
+            }
+
+            out.println("END");
+            return true;
+        };
+    }
+
+    private ServerCommand getSharedPlaylistsCommand(String args) {
+        return out -> {
+            if (loggedInUser == null) {
+                out.println("ERROR: Not logged in");
+                out.println("END");
+                return false;
+            }
+
+            List<User> followedUsers = loggedInUser.getFollowedUsers();
+            boolean foundPlaylists = false;
+
+            // Pour chaque utilisateur suivi
+            for (User followedUser : followedUsers) {
+                // Vérifier s'il partage ses playlists
+                if (followedUser.arePlaylistsSharedPublicly()) {
+                    // Envoyer les playlists de cet utilisateur
+                    for (Playlist playlist : followedUser.getPlaylists()) {
+                        out.println(playlist.getName() + "|" + followedUser.getUsername());
+                        foundPlaylists = true;
+                    }
+                }
+            }
+
+            if (!foundPlaylists) {
+                // Pas de playlists partagées trouvées
+            }
+
+            out.println("END");
+            return true;
+        };
+    }
+
+    private ServerCommand getSharedPlaylistSongsCommand(String args) {
+        return out -> {
+            if (loggedInUser == null) {
+                out.println("ERROR: Not logged in");
+                out.println("END");
+                return false;
+            }
+
+            String[] parts = args.split(" ", 2);
+            if (parts.length != 2) {
+                out.println("ERROR: Invalid arguments");
+                out.println("END");
+                return false;
+            }
+
+            String ownerUsername = parts[0];
+            String playlistName = parts[1];
+
+            // Vérifier si l'utilisateur existe
+            User owner = UserPersistenceManager.getUserByUsername(ownerUsername);
+            if (owner == null) {
+                out.println("ERROR: User not found");
+                out.println("END");
+                return false;
+            }
+
+            // Vérifier si l'utilisateur est suivi
+            if (!loggedInUser.isFollowing(owner) && !owner.arePlaylistsSharedPublicly()) {
+                out.println("ERROR: You cannot access this playlist");
+                out.println("END");
+                return false;
+            }
+
+            // Trouver la playlist
+            Playlist playlist = owner.getPlaylistByName(playlistName);
+            if (playlist == null) {
+                out.println("ERROR: Playlist not found");
+                out.println("END");
+                return false;
+            }
+
+            out.println("SUCCESS: Found playlist");
+
+            // Envoyer les chansons
+            for (Song song : playlist.getSongs()) {
+                out.println(song.getTitle() + "|" +
+                        song.getArtist() + "|" +
+                        song.getAlbum() + "|" +
+                        song.getGenre() + "|" +
+                        song.getDuration() + "|" +
+                        (song.getFilePath() != null ? song.getFilePath() : ""));
+            }
+
+            out.println("END");
+            return true;
+        };
+    }
+
+    private ServerCommand copySharedPlaylistCommand(String args) {
+        return out -> {
+            if (loggedInUser == null) {
+                out.println("ERROR: Not logged in");
+                return false;
+            }
+
+            String[] parts = args.split(" ", 3);
+            if (parts.length != 3) {
+                out.println("ERROR: Invalid arguments");
+                return false;
+            }
+
+            String ownerUsername = parts[0];
+            String sourcePlaylistName = parts[1];
+            String newPlaylistName = parts[2];
+
+            // Vérifier si l'utilisateur existe
+            User owner = UserPersistenceManager.getUserByUsername(ownerUsername);
+            if (owner == null) {
+                out.println("ERROR: User not found");
+                return false;
+            }
+
+            // Vérifier si l'utilisateur est suivi
+            if (!loggedInUser.isFollowing(owner) && !owner.arePlaylistsSharedPublicly()) {
+                out.println("ERROR: You cannot access this playlist");
+                return false;
+            }
+
+            // Trouver la playlist source
+            Playlist sourcePlaylist = owner.getPlaylistByName(sourcePlaylistName);
+            if (sourcePlaylist == null) {
+                out.println("ERROR: Playlist not found");
+                return false;
+            }
+
+            // Vérifier si une playlist avec le nouveau nom existe déjà
+            if (loggedInUser.getPlaylistByName(newPlaylistName) != null) {
+                out.println("ERROR: A playlist with this name already exists");
+                return false;
+            }
+
+            // Vérifier si l'utilisateur peut ajouter plus de playlists
+            if (!loggedInUser.canAddPlaylist()) {
+                out.println("ERROR: You have reached your playlist limit");
+                return false;
+            }
+
+            // Créer une nouvelle playlist avec les mêmes chansons
+            Playlist newPlaylist = new Playlist(newPlaylistName);
+            for (Song song : sourcePlaylist.getSongs()) {
+                newPlaylist.addSong(song);
+            }
+
+            // Ajouter la playlist à l'utilisateur
+            loggedInUser.addPlaylist(newPlaylist);
+
+            // Mettre à jour la persistance
+            UserPersistenceManager.updateUser(loggedInUser);
+
+            out.println("SUCCESS: Playlist copied successfully");
+            return true;
+        };
+    }
+
+    private ServerCommand loadSharedPlaylistCommand(String args) {
+        return out -> {
+            if (loggedInUser == null) {
+                out.println("ERROR: Not logged in");
+                return false;
+            }
+
+            String[] parts = args.split(" ", 2);
+            if (parts.length != 2) {
+                out.println("ERROR: Invalid arguments");
+                return false;
+            }
+
+            String ownerUsername = parts[0];
+            String playlistName = parts[1];
+
+            // Vérifier si l'utilisateur existe
+            User owner = UserPersistenceManager.getUserByUsername(ownerUsername);
+            if (owner == null) {
+                out.println("ERROR: User not found");
+                return false;
+            }
+
+            // Vérifier si l'utilisateur est suivi
+            if (!loggedInUser.isFollowing(owner) && !owner.arePlaylistsSharedPublicly()) {
+                out.println("ERROR: You cannot access this playlist");
+                return false;
+            }
+
+            // Trouver la playlist
+            Playlist playlist = owner.getPlaylistByName(playlistName);
+            if (playlist == null) {
+                out.println("ERROR: Playlist not found");
+                return false;
+            }
+
+            out.println("SUCCESS: Playlist loaded");
+            return true;
+        };
+    }
+
+    private ServerCommand setPlaylistSharingCommand(String args) {
+        return out -> {
+            if (loggedInUser == null) {
+                out.println("ERROR: Not logged in");
+                return false;
+            }
+
+            boolean sharePublicly = Boolean.parseBoolean(args);
+
+            loggedInUser.setSharePlaylistsPublicly(sharePublicly);
+
+            // Mettre à jour la persistance
+            UserPersistenceManager.updateUser(loggedInUser);
+
+            out.println("SUCCESS: Playlist sharing preferences updated");
+            return true;
+        };
+    }
+    /**
+     * Démarre le timer qui surveille la session utilisateur
+     */
+    public void startSessionTimer() {
+        // Initialiser le temps d'activité
+        lastActivityTime = System.currentTimeMillis();
+
+        // Créer et configurer le timer
+        sessionTimer = new java.util.Timer();
+        sessionTimer.schedule(new java.util.TimerTask() {
+            @Override
+            public void run() {
+                try {
+                    // Vérifier si la connexion est toujours active
+                    if (socket != null && (socket.isClosed() || !socket.isConnected())) {
+                        System.out.println("DEBUG: Socket closed or disconnected - cleaning up");
+                        closeResources();
+                        cancel(); // Arrêter le timer
+                        return;
+                    }
+
+                    // Vérifier si la session a expiré par inactivité
+                    long currentTime = System.currentTimeMillis();
+                    if (currentTime - lastActivityTime > SESSION_TIMEOUT) {
+                        System.out.println("DEBUG: Session expired due to inactivity");
+                        loggedInUser = null; // Déconnecter l'utilisateur
+                    }
+
+                    // Vérifier l'état de la session utilisateur
+                    checkUserSession();
+                } catch (Exception e) {
+                    System.err.println("Error in session timer: " + e.getMessage());
+                }
+            }
+        }, 10000, 60000); // Vérifier toutes les 60 secondes, première vérification après 10 secondes
+    }
+
+    /**
+     * Vérifie l'état de la session utilisateur
+     */
+    private void checkUserSession() {
+        if (loggedInUser == null) {
+            // Aucun utilisateur connecté, rien à faire
+            return;
+        }
+
+        // Recharger l'utilisateur depuis la persistance pour s'assurer qu'il est à jour
+        User updatedUser = UserPersistenceManager.getUserByUsername(loggedInUser.getUsername());
+        if (updatedUser != null) {
+            loggedInUser = updatedUser;
+        } else {
+            System.out.println("DEBUG: User no longer exists in persistence - clearing session");
+            loggedInUser = null;
+        }
     }
 }

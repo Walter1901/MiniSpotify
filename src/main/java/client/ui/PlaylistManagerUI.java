@@ -35,11 +35,12 @@ public class PlaylistManagerUI {
             System.out.println("==================================================================================");
             System.out.println("\n--- Playlist management ---");
             System.out.println("1. Create a new playlist");
-            System.out.println("2. Display my playlists");
-            System.out.println("3. Add a song to a playlist");
-            System.out.println("4. Delete a song from a playlist");
-            System.out.println("5. Reorder songs in a playlist");  // Nouvelle option
-            System.out.println("6. Back");  // Modifié de 5 à 6
+            System.out.println("2. Create collaborative playlist");  // Nouvelle option
+            System.out.println("3. Display my playlists");
+            System.out.println("4. Add a song to a playlist");
+            System.out.println("5. Delete a song from a playlist");
+            System.out.println("6. Reorder songs in a playlist");
+            System.out.println("7. Back");
             System.out.println("==================================================================================");
             System.out.print("Choose an option: ");
             String option = scanner.nextLine().trim();
@@ -49,24 +50,77 @@ public class PlaylistManagerUI {
                     createPlaylist();
                     break;
                 case "2":
-                    displayPlaylists();
+                    createCollaborativePlaylist();
                     break;
                 case "3":
-                    addSongToPlaylist();
+                    displayPlaylists();
                     break;
                 case "4":
+                    addSongToPlaylist();
+                    break;
+                case "5":
                     removeSongFromPlaylist();
                     break;
-                case "5":  // Nouvelle option
+                case "6":
                     reorderSongsInPlaylist();
                     break;
-                case "6":  // Modifié de 5 à 6
+                case "7":
                     back = true;
                     break;
                 default:
                     System.out.println("Invalid option.");
             }
         }
+    }
+
+    /**
+     * Crée une nouvelle playlist collaborative
+     */
+    private void createCollaborativePlaylist() throws IOException {
+        // Vérifier d'abord si nous sommes connectés
+        if (!mainUI.isLoggedIn()) {
+            System.out.println("==================================================================================");
+            System.out.println("You are not logged in. Please log in first.");
+            System.out.println("==================================================================================");
+            return;
+        }
+
+        System.out.println("==================================================================================");
+        System.out.println("Enter the name of the new collaborative playlist: ");
+        System.out.println("==================================================================================");
+        String playlistName = scanner.nextLine();
+
+        System.out.println("==================================================================================");
+        System.out.println("Enter usernames to add as collaborators (comma-separated): ");
+        System.out.println("==================================================================================");
+        String collaboratorsInput = scanner.nextLine();
+
+        // Envoyer la commande
+        out.println("CREATE_COLLAB_PLAYLIST " + playlistName + " " + collaboratorsInput);
+
+        // Lire et traiter la réponse
+        String response = in.readLine();
+
+        // Vérifier si nous avons perdu la connexion
+        if (response == null) {
+            System.out.println("==================================================================================");
+            System.out.println("Lost connection to server. Please restart the application.");
+            System.out.println("==================================================================================");
+            mainUI.setExitRequested(true);
+            return;
+        }
+
+        // Traiter la réponse normale
+        System.out.println("==================================================================================");
+        System.out.println(response);
+
+        // Si l'erreur indique que l'utilisateur n'est pas connecté, le reconnecter
+        if (response.contains("No user logged in")) {
+            System.out.println("Session expired. Please log in again.");
+            mainUI.setLoggedIn(false);
+        }
+
+        System.out.println("==================================================================================");
     }
 
     /**
@@ -104,9 +158,12 @@ public class PlaylistManagerUI {
 
         String response;
         List<String> playlists = new ArrayList<>();
-        while (!(response = in.readLine()).equals("END")) {
+        while ((response = readLineFromServer()) != null && !response.equals("END")) {
             playlists.add(response);
         }
+
+        // Si déconnexion, retourner immédiatement
+        if (response == null) return;
 
         if (playlists.isEmpty()) {
             System.out.println("==================================================================================");
@@ -168,8 +225,16 @@ public class PlaylistManagerUI {
 
             // First, ensure we have the playlist from the server
             out.println("CHECK_PLAYLIST " + playlistName);
-            // Read the response directly from the input stream
+
+            // Lire la réponse et vérifier si elle est null (connexion fermée)
             String response = in.readLine();
+            if (response == null) {
+                System.out.println("==================================================================================");
+                System.out.println("Lost connection to server. Please restart the application.");
+                System.out.println("==================================================================================");
+                mainUI.setExitRequested(true); // Demander à quitter l'application
+                return;
+            }
 
             if ("PLAYLIST_NOT_FOUND".equals(response)) {
                 System.out.println("Playlist not found.");
@@ -184,9 +249,19 @@ public class PlaylistManagerUI {
             String line;
             List<String> songs = new ArrayList<>();
 
-            while (!(line = in.readLine()).equals("END")) {
+            // Utiliser une boucle plus robuste qui vérifie si line est null
+            while ((line = in.readLine()) != null && !line.equals("END")) {
                 System.out.println(line);
                 songs.add(line);
+            }
+
+            // Vérifier à nouveau si nous avons perdu la connexion
+            if (line == null) {
+                System.out.println("==================================================================================");
+                System.out.println("Lost connection to server. Please restart the application.");
+                System.out.println("==================================================================================");
+                mainUI.setExitRequested(true);
+                return;
             }
 
             if (songs.isEmpty()) {
@@ -203,13 +278,24 @@ public class PlaylistManagerUI {
 
             // Send the command with proper formatting
             out.println("ADD_SONG_TO_PLAYLIST " + playlistName + " " + songTitle);
+
+            // Encore une vérification pour null
             response = in.readLine();
+            if (response == null) {
+                System.out.println("==================================================================================");
+                System.out.println("Lost connection to server. Please restart the application.");
+                System.out.println("==================================================================================");
+                mainUI.setExitRequested(true);
+                return;
+            }
 
             System.out.println(response);
             System.out.println("==================================================================================");
         } catch (IOException e) {
             System.err.println("Error while communicating with server: " + e.getMessage());
             System.out.println("==================================================================================");
+            // En cas d'erreur de communication, suggérer de redémarrer l'application
+            mainUI.setExitRequested(true);
         }
     }
 
@@ -392,5 +478,20 @@ public class PlaylistManagerUI {
             System.out.println("Error: " + response);
         }
         System.out.println("==================================================================================");
+    }
+
+    /**
+     * Lit une ligne du serveur et gère la déconnexion
+     * @return la ligne lue ou null en cas de déconnexion
+     */
+    private String readLineFromServer() throws IOException {
+        String line = in.readLine();
+        if (line == null) {
+            System.out.println("==================================================================================");
+            System.out.println("Lost connection to server. Please restart the application.");
+            System.out.println("==================================================================================");
+            mainUI.setExitRequested(true);
+        }
+        return line;
     }
 }
