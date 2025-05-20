@@ -4,9 +4,7 @@ import java.io.*;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 
@@ -81,12 +79,14 @@ public class ClientHandler implements Runnable {
         commandFactories.put("REMOVE_SONG_FROM_PLAYLIST", this::removeSongFromPlaylistCommand);
         commandFactories.put("REORDER_PLAYLIST_SONG", this::reorderPlaylistSongCommand);
         commandFactories.put("CREATE_COLLAB_PLAYLIST", this::createCollabPlaylistCommand);
+        commandFactories.put("DELETE_PLAYLIST", this::deletePlaylistCommand);
 
         // Music library commands
         commandFactories.put("GET_PLAYLIST_SONGS", this::getPlaylistSongsCommand);
         commandFactories.put("GET_ALL_SONGS", args -> getAllSongsCommand());
         commandFactories.put("SEARCH_TITLE", this::searchTitleCommand);
         commandFactories.put("SEARCH_ARTIST", this::searchArtistCommand);
+
 
         // Player commands
         commandFactories.put("LOAD_PLAYLIST", this::loadPlaylistCommand);
@@ -1647,4 +1647,36 @@ public class ClientHandler implements Runnable {
             }
         };
     }
+    private ServerCommand deletePlaylistCommand(String args) {
+        return out -> {
+            try {
+                if (loggedInUser == null) {
+                    out.println("ERROR: Not logged in");
+                    return false;
+                }
+
+                String playlistName = args.trim();
+
+                // Version simplifiée utilisant la méthode removePlaylist()
+                if (loggedInUser.removePlaylist(playlistName)) {
+                    // Mettre à jour la persistence
+                    UserPersistenceManager.updateUser(loggedInUser);
+                    out.println("SUCCESS: Playlist '" + playlistName + "' deleted successfully");
+                    return true;
+                } else {
+                    out.println("ERROR: Playlist '" + playlistName + "' not found");
+                    return false;
+                }
+
+            } catch (Exception e) {
+                System.err.println("Error in deletePlaylistCommand: " + e.getMessage());
+                e.printStackTrace();
+                out.println("ERROR: Server error: " + e.getMessage());
+                return false;
+            }
+        };
+    }
+
+
+
 }

@@ -100,4 +100,19 @@ public abstract class User {
     public int hashCode() {
         return username.hashCode();
     }
+
+    public boolean removePlaylist(String playlistName) {
+        if (playlistName == null || playlistName.isEmpty()) {
+            return false;
+        }
+
+        for (int i = 0; i < playlists.size(); i++) {
+            if (playlists.get(i).getName().equalsIgnoreCase(playlistName)) {
+                playlists.remove(i);
+                return true;
+            }
+        }
+
+        return false;
+    }
 }

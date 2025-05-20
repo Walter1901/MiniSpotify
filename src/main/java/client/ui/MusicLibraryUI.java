@@ -37,7 +37,7 @@ public class MusicLibraryUI {
             System.out.println("1. Show all songs");
             System.out.println("2. Search by title");
             System.out.println("3. Search by artist");
-            System.out.println("4. Back");
+            System.out.println("5. Back");
             System.out.println("==================================================================================");
             System.out.print("Choose an option: ");
             String option = scanner.nextLine().trim();
@@ -136,4 +136,5 @@ public class MusicLibraryUI {
             System.out.println("==================================================================================");
         }
     }
+
 }

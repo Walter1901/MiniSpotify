@@ -57,6 +57,9 @@ public class PlaylistManagerUI {
                         reorderSongsInPlaylist();
                         break;
                     case "7":
+                        deletePlaylist();
+                        break;
+                    case "8":
                         back = true;
                         break;
                     default:
@@ -91,7 +94,8 @@ public class PlaylistManagerUI {
         System.out.println("4. Add a song to a playlist");
         System.out.println("5. Delete a song from a playlist");
         System.out.println("6. Reorder songs in a playlist");
-        System.out.println("7. Back");
+        System.out.println("7. Delete a playlist");
+        System.out.println("8. Back");
         System.out.println("==================================================================================");
         System.out.print("Choose an option: ");
     }
@@ -631,5 +635,69 @@ public class PlaylistManagerUI {
         System.out.println("Please restart the application.");
         System.out.println("==================================================================================");
         mainUI.setExitRequested(true);
+    }
+
+    private void deletePlaylist() throws IOException {
+        try {
+            System.out.println("==================================================================================");
+            System.out.println("Your playlists:");
+
+            // Récupérer la liste des playlists
+            out.println("GET_PLAYLISTS");
+
+            String response;
+            List<String> playlists = new ArrayList<>();
+
+            while ((response = safeReadLine()) != null && !response.equals("END")) {
+                playlists.add(response);
+                System.out.println("- " + response);
+            }
+
+            if (response == null) {
+                handleConnectionLoss("Lost connection while retrieving playlists");
+                return;
+            }
+
+            if (playlists.isEmpty()) {
+                System.out.println("==================================================================================");
+                System.out.println("No playlists to delete.");
+                System.out.println("==================================================================================");
+                return;
+            }
+
+            // Demander quelle playlist supprimer
+            System.out.println("==================================================================================");
+            System.out.println("Enter the name of the playlist to delete: ");
+            String playlistName = scanner.nextLine().trim();
+
+            // Confirmation pour éviter les suppressions accidentelles
+            System.out.println("==================================================================================");
+            System.out.println("Are you sure you want to delete the playlist '" + playlistName + "'? (y/n): ");
+            String confirmation = scanner.nextLine().trim().toLowerCase();
+
+            if (confirmation.equals("y")) {
+                // Envoyer la commande de suppression
+                out.println("DELETE_PLAYLIST " + playlistName);
+                response = safeReadLine();
+
+                if (response == null) {
+                    handleConnectionLoss("No response when deleting playlist");
+                    return;
+                }
+
+                System.out.println("==================================================================================");
+                System.out.println(response);
+                System.out.println("==================================================================================");
+            } else {
+                System.out.println("==================================================================================");
+                System.out.println("Playlist deletion cancelled.");
+                System.out.println("==================================================================================");
+            }
+        } catch (Exception e) {
+            System.out.println("==================================================================================");
+            System.out.println("Error deleting playlist: " + e.getMessage());
+            System.out.println("==================================================================================");
+            throw e;
+        }
     }
 }
