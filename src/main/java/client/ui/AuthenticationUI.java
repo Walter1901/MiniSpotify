@@ -137,7 +137,7 @@ public class AuthenticationUI {
                 System.out.println("==================================================================================");
                 mainUI.setCurrentUser(username);
                 mainUI.setLoggedIn(true);
-                return; // Sortir de la méthode après un succès
+                return;
             } else {
                 System.out.println("==================================================================================");
                 System.out.println("❌ Authentication failed.");

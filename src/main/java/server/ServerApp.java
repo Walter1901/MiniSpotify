@@ -1,11 +1,12 @@
 package server;
 
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import server.music.MusicLibrary;
 import server.music.MusicLoader;
@@ -13,27 +14,30 @@ import server.config.ServerConfig;
 import server.music.Song;
 
 /**
- * Point d'entrée principal du serveur MiniSpotify
+ * Main entry point for the MiniSpotify server
  */
 public class ServerApp {
-    // Singleton pour le serveur
+    // Singleton for the server
     private static volatile ServerApp instance;
 
-    // Configuration du serveur
+    // Server configuration
     private final int port;
-    private boolean running;
+    private volatile boolean running;
     private ServerSocket serverSocket;
+    private ExecutorService threadPool;
 
     /**
-     * Constructeur privé (Singleton)
+     * Private constructor (Singleton)
      */
     private ServerApp() {
         this.port = ServerConfig.PORT;
         this.running = false;
+        // Create thread pool for client handlers
+        this.threadPool = Executors.newFixedThreadPool(ServerConfig.MAX_CLIENTS);
     }
 
     /**
-     * Getter pour l'instance Singleton
+     * Getter for Singleton instance
      */
     public static ServerApp getInstance() {
         if (instance == null) {
@@ -47,10 +51,10 @@ public class ServerApp {
     }
 
     /**
-     * Démarrage du serveur
+     * Server startup
      */
     public void start() {
-        // Chargement des chansons via le Singleton MusicLoader
+        // Load songs via MusicLoader Singleton
         MusicLoader.getInstance().loadAllSongs();
 
         try {
@@ -58,9 +62,23 @@ public class ServerApp {
             serverSocket = new ServerSocket(port);
             running = true;
             System.out.println("✅ Server started on port " + port);
-
+            System.out.println("Maximum clients: " + ServerConfig.MAX_CLIENTS);
             System.out.println("Waiting for client connections...");
-            acceptConnections();
+
+            // Start a separate thread for accepting connections
+            Thread acceptThread = new Thread(this::acceptConnections);
+            acceptThread.setDaemon(true);
+            acceptThread.start();
+
+            // Add shutdown hook for graceful shutdown
+            Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
+
+            // Keep main thread alive
+            try {
+                acceptThread.join();
+            } catch (InterruptedException e) {
+                System.out.println("Server interrupted");
+            }
 
         } catch (IOException e) {
             System.err.println("❌ ERROR: Unable to start server");
@@ -72,7 +90,7 @@ public class ServerApp {
     }
 
     /**
-     * Boucle d'acceptation des connexions
+     * Connection acceptance loop
      */
     private void acceptConnections() {
         while (running) {
@@ -80,43 +98,64 @@ public class ServerApp {
                 Socket socket = serverSocket.accept();
                 System.out.println("🔗 Connected client: " + socket.getInetAddress());
 
-                // Création et démarrage d'un thread pour gérer le client
+                // Create and submit client handler to thread pool
                 ClientHandler handler = new ClientHandler(socket);
-                new Thread(handler).start();
+                threadPool.submit(handler);
 
             } catch (IOException e) {
                 if (running) {
                     System.err.println("Error accepting client connection: " + e.getMessage());
+                    // Short pause to avoid busy-waiting in case of persistent errors
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                    }
                 }
+            } catch (Exception e) {
+                // Catch any other exceptions to prevent server from crashing
+                System.err.println("Unexpected error in connection acceptance: " + e.getMessage());
+                e.printStackTrace();
             }
         }
     }
 
     /**
-     * Arrêt du serveur
+     * Server shutdown
      */
     public void shutdown() {
         running = false;
+        System.out.println("Server shutting down...");
+
+        // Shutdown thread pool
+        if (threadPool != null && !threadPool.isShutdown()) {
+            threadPool.shutdown();
+            System.out.println("Thread pool shutdown initiated");
+        }
+
+        // Close server socket
         if (serverSocket != null && !serverSocket.isClosed()) {
             try {
                 serverSocket.close();
-                System.out.println("Server shutdown completed");
+                System.out.println("Server socket closed");
             } catch (IOException e) {
                 System.err.println("Error closing ServerSocket: " + e.getMessage());
             }
         }
+
+        System.out.println("Server shutdown completed");
     }
 
     /**
-     * Méthode principale
+     * Main method
      */
     public static void main(String[] args) {
-        // Chargement des chansons
+        // Load songs
         MusicLoader.getInstance().loadAllSongs();
 
-        // Mise à jour des chemins de fichiers
+        // Update file paths
         MusicLoader.getInstance().updateSongPaths();
-        // Réparation des playlists existantes
+        // Repair existing playlists
         MusicLoader.getInstance().repairExistingPlaylists();
 
         File mp3Dir = new File("src/main/resources/mp3");
@@ -124,13 +163,13 @@ public class ServerApp {
             File[] mp3Files = mp3Dir.listFiles((dir, name) -> name.toLowerCase().endsWith(".mp3"));
 
             if (mp3Files != null && mp3Files.length > 0) {
-                // Créer un mapping entre les titres courants et les fichiers trouvés
+                // Create mapping between current titles and found files
                 Map<String, String> titleToPathMap = new HashMap<>();
 
                 for (File file : mp3Files) {
                     String fileName = file.getName().toLowerCase();
 
-                    // Essayer différentes correspondances
+                    // Try different matching approaches
                     if (fileName.contains("mussulo")) {
                         titleToPathMap.put("Mussulo", file.getAbsolutePath());
                     } else if (fileName.contains("ciel")) {
@@ -144,7 +183,7 @@ public class ServerApp {
                     }
                 }
 
-                // Mettre à jour toutes les chansons dans la bibliothèque
+                // Update all songs in the library
                 for (Song song : MusicLibrary.getInstance().getAllSongs()) {
                     String path = titleToPathMap.get(song.getTitle());
                     if (path != null) {
@@ -154,7 +193,8 @@ public class ServerApp {
                 }
             }
         }
-        // Utilisation du Singleton
+
+        // Use Singleton to start server
         ServerApp.getInstance().start();
     }
 }

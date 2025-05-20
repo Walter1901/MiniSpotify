@@ -6,7 +6,7 @@ import java.io.FileInputStream;
 import java.io.File;
 
 /**
- * Gestionnaire de lecture audio utilisant JavaZoom JLayer
+ * Audio playback manager using JavaZoom JLayer
  */
 public class AudioPlayer {
     private Player player;
@@ -14,32 +14,33 @@ public class AudioPlayer {
     private String currentFile;
     private boolean isPlaying = false;
     private boolean isPaused = false;
-    private long pauseLocation;
+    private long pausePosition;
     private long songTotalLength;
     private FileInputStream fileInputStream;
+    private long startTime; // To track elapsed time for better pause position calculation
 
     /**
-     * Lecture d'un fichier audio
-     * @param filePath chemin du fichier
+     * Plays an audio file
+     * @param filePath path to the file
      */
     public void play(String filePath) {
         try {
-            // Arrêter la lecture en cours si nécessaire
+            // Stop current playback if necessary
             stop();
 
-            // Vérifier que le chemin n'est pas un chemin formaté par erreur
+            // Check if the path is not a path formatted by error
             if (filePath != null && filePath.contains("|")) {
-                System.out.println("⚠️ Format de chemin incorrect détecté: " + filePath);
-                System.out.println("⚠️ Impossible de lire le fichier avec ce format");
+                System.out.println("⚠️ Incorrect path format detected: " + filePath);
+                System.out.println("⚠️ Cannot play file with this format");
                 isPlaying = false;
                 return;
             }
 
-            // Vérifier si le fichier existe
+            // Check if the file exists
             File file = new File(filePath);
             if (!file.exists()) {
-                System.out.println("⚠️ Fichier introuvable: " + filePath);
-                System.out.println("⚠️ Chemin absolu: " + file.getAbsolutePath());
+                System.out.println("⚠️ File not found: " + filePath);
+                System.out.println("⚠️ Absolute path: " + file.getAbsolutePath());
                 isPlaying = false;
                 return;
             }
@@ -48,44 +49,51 @@ public class AudioPlayer {
             fileInputStream = new FileInputStream(filePath);
             songTotalLength = fileInputStream.available();
 
-            // Créer un nouveau joueur
+            // Create a new player
             BufferedInputStream bufferedInputStream = new BufferedInputStream(fileInputStream);
             player = new Player(bufferedInputStream);
 
-            // Démarrer la lecture dans un thread séparé
+            // Record start time for better pause position tracking
+            startTime = System.currentTimeMillis();
+
+            // Start playback in a separate thread
             playerThread = new Thread(() -> {
                 try {
-                    System.out.println("🎵 Début de la lecture audio: " + filePath);
+                    System.out.println("🎵 Starting audio playback: " + filePath);
                     isPlaying = true;
                     isPaused = false;
                     player.play();
-                    System.out.println("🎵 Fin de la lecture");
+                    System.out.println("🎵 Playback ended");
                     isPlaying = false;
                 } catch (Exception e) {
-                    System.out.println("⚠️ Erreur de lecture: " + e.getMessage());
+                    System.out.println("⚠️ Playback error: " + e.getMessage());
                     isPlaying = false;
                 }
             });
 
             playerThread.start();
         } catch (Exception e) {
-            System.out.println("⚠️ Erreur d'initialisation du lecteur: " + e.getMessage());
+            System.out.println("⚠️ Player initialization error: " + e.getMessage());
             isPlaying = false;
         }
     }
 
     /**
-     * Met en pause la lecture et retourne la position
-     * @return position en octets dans le fichier
+     * Pauses playback and returns position
+     * @return position in bytes in the file
      */
     public long pause() {
         if (player != null && isPlaying && !isPaused) {
             try {
-                // JLayer ne supporte pas directement pause/resume
-                // On stoppe le joueur et on mémorise la position
-                pauseLocation = fileInputStream.available();
+                // Store current position information before stopping the player
+                pausePosition = player.getPosition();
+
+                // Close resources
                 player.close();
-                fileInputStream.close();
+                if (fileInputStream != null) {
+                    fileInputStream.close();
+                }
+
                 isPaused = true;
                 isPlaying = false;
 
@@ -93,54 +101,59 @@ public class AudioPlayer {
                     playerThread.interrupt();
                 }
 
-                System.out.println("⏸️ Lecture en pause à " + (songTotalLength - pauseLocation) + "/" + songTotalLength);
-                return songTotalLength - pauseLocation;
+                System.out.println("⏸️ Playback paused at " + pausePosition + " ms");
+                return pausePosition;
             } catch (Exception e) {
-                System.out.println("⚠️ Erreur lors de la pause: " + e.getMessage());
+                System.out.println("⚠️ Error during pause: " + e.getMessage());
                 return 0;
             }
         }
         return 0;
     }
-
     /**
-     * Reprend la lecture à partir du point de pause
+     * Resumes playback from pause point
      */
     public void resume() {
         if (isPaused && currentFile != null) {
             try {
-                // On crée un nouveau joueur et on se positionne
+                // Create a new player and position it
                 fileInputStream = new FileInputStream(currentFile);
-                long skipBytes = songTotalLength - pauseLocation;
-                fileInputStream.skip(skipBytes);
+
+                // Skip to pause position if possible
+                if (pausePosition > 0) {
+                    fileInputStream.skip(pausePosition);
+                }
 
                 BufferedInputStream bufferedInputStream = new BufferedInputStream(fileInputStream);
                 player = new Player(bufferedInputStream);
 
-                // Démarrer la lecture dans un thread séparé
+                // Reset start time for accurate future pause
+                startTime = System.currentTimeMillis();
+
+                // Start playback in a separate thread
                 playerThread = new Thread(() -> {
                     try {
-                        System.out.println("▶️ Reprise de la lecture à " + skipBytes + "/" + songTotalLength);
+                        System.out.println("▶️ Resuming playback from " + pausePosition + "/" + songTotalLength);
                         isPlaying = true;
                         isPaused = false;
                         player.play();
-                        System.out.println("🎵 Fin de la lecture");
+                        System.out.println("🎵 Playback ended");
                         isPlaying = false;
                     } catch (Exception e) {
-                        System.out.println("⚠️ Erreur lors de la reprise: " + e.getMessage());
+                        System.out.println("⚠️ Error during resume: " + e.getMessage());
                         isPlaying = false;
                     }
                 });
 
                 playerThread.start();
             } catch (Exception e) {
-                System.out.println("⚠️ Erreur lors de la reprise: " + e.getMessage());
+                System.out.println("⚠️ Error during resume: " + e.getMessage());
             }
         }
     }
 
     /**
-     * Arrête la lecture
+     * Stops playback
      */
     public void stop() {
         if (player != null) {
@@ -157,22 +170,22 @@ public class AudioPlayer {
                     fileInputStream.close();
                 }
             } catch (Exception e) {
-                System.out.println("⚠️ Erreur lors de l'arrêt: " + e.getMessage());
+                System.out.println("⚠️ Error during stop: " + e.getMessage());
             }
 
-            System.out.println("⏹️ Lecture arrêtée");
+            System.out.println("⏹️ Playback stopped");
         }
     }
 
     /**
-     * Vérifie si une lecture est en cours
+     * Checks if playback is in progress
      */
     public boolean isPlaying() {
         return isPlaying;
     }
 
     /**
-     * Vérifie si la lecture est en pause
+     * Checks if playback is paused
      */
     public boolean isPaused() {
         return isPaused;

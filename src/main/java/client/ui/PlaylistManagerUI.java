@@ -2,13 +2,14 @@ package client.ui;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.net.SocketException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 
 /**
- * Interface utilisateur pour la gestion des playlists
+ * User interface for playlist management
  */
 public class PlaylistManagerUI {
     private UserInterface mainUI;
@@ -17,7 +18,7 @@ public class PlaylistManagerUI {
     private Scanner scanner;
 
     /**
-     * Constructeur
+     * Constructor
      */
     public PlaylistManagerUI(UserInterface mainUI, BufferedReader in, PrintWriter out, Scanner scanner) {
         this.mainUI = mainUI;
@@ -27,57 +28,79 @@ public class PlaylistManagerUI {
     }
 
     /**
-     * Gère les playlists
+     * Manages playlists
      */
     public void managePlaylists() throws IOException {
         boolean back = false;
         while (!back) {
-            System.out.println("==================================================================================");
-            System.out.println("\n--- Playlist management ---");
-            System.out.println("1. Create a new playlist");
-            System.out.println("2. Create collaborative playlist");  // Nouvelle option
-            System.out.println("3. Display my playlists");
-            System.out.println("4. Add a song to a playlist");
-            System.out.println("5. Delete a song from a playlist");
-            System.out.println("6. Reorder songs in a playlist");
-            System.out.println("7. Back");
-            System.out.println("==================================================================================");
-            System.out.print("Choose an option: ");
+            displayMenuOptions();
             String option = scanner.nextLine().trim();
 
-            switch (option) {
-                case "1":
-                    createPlaylist();
+            try {
+                switch (option) {
+                    case "1":
+                        createPlaylist();
+                        break;
+                    case "2":
+                        createCollaborativePlaylist();
+                        break;
+                    case "3":
+                        displayPlaylists();
+                        break;
+                    case "4":
+                        addSongToPlaylist();
+                        break;
+                    case "5":
+                        removeSongFromPlaylist();
+                        break;
+                    case "6":
+                        reorderSongsInPlaylist();
+                        break;
+                    case "7":
+                        back = true;
+                        break;
+                    default:
+                        System.out.println("Invalid option.");
+                }
+            } catch (Exception e) {
+                System.out.println("==================================================================================");
+                System.out.println("Error processing command: " + e.getMessage());
+                System.out.println("==================================================================================");
+
+                // If connection is completely lost, exit
+                if (e instanceof IOException && e.getMessage() != null &&
+                        (e.getMessage().contains("Connection reset") ||
+                                e.getMessage().contains("Broken pipe") ||
+                                e.getMessage().contains("Socket closed"))) {
+                    handleConnectionLoss("Connection error: " + e.getMessage());
                     break;
-                case "2":
-                    createCollaborativePlaylist();
-                    break;
-                case "3":
-                    displayPlaylists();
-                    break;
-                case "4":
-                    addSongToPlaylist();
-                    break;
-                case "5":
-                    removeSongFromPlaylist();
-                    break;
-                case "6":
-                    reorderSongsInPlaylist();
-                    break;
-                case "7":
-                    back = true;
-                    break;
-                default:
-                    System.out.println("Invalid option.");
+                }
             }
         }
     }
 
     /**
-     * Crée une nouvelle playlist collaborative
+     * Display menu options
+     */
+    private void displayMenuOptions() {
+        System.out.println("==================================================================================");
+        System.out.println("\n--- Playlist management ---");
+        System.out.println("1. Create a new playlist");
+        System.out.println("2. Create collaborative playlist");
+        System.out.println("3. Display my playlists");
+        System.out.println("4. Add a song to a playlist");
+        System.out.println("5. Delete a song from a playlist");
+        System.out.println("6. Reorder songs in a playlist");
+        System.out.println("7. Back");
+        System.out.println("==================================================================================");
+        System.out.print("Choose an option: ");
+    }
+
+    /**
+     * Creates a new collaborative playlist
      */
     private void createCollaborativePlaylist() throws IOException {
-        // Vérifier d'abord si nous sommes connectés
+        // First check if we're logged in
         if (!mainUI.isLoggedIn()) {
             System.out.println("==================================================================================");
             System.out.println("You are not logged in. Please log in first.");
@@ -95,36 +118,55 @@ public class PlaylistManagerUI {
         System.out.println("==================================================================================");
         String collaboratorsInput = scanner.nextLine();
 
-        // Envoyer la commande
-        out.println("CREATE_COLLAB_PLAYLIST " + playlistName + " " + collaboratorsInput);
-
-        // Lire et traiter la réponse
-        String response = in.readLine();
-
-        // Vérifier si nous avons perdu la connexion
-        if (response == null) {
+        try {
             System.out.println("==================================================================================");
-            System.out.println("Lost connection to server. Please restart the application.");
+            System.out.println("Creating collaborative playlist '" + playlistName + "' with collaborators: " + collaboratorsInput);
             System.out.println("==================================================================================");
-            mainUI.setExitRequested(true);
-            return;
+
+            // Send command
+            out.println("CREATE_COLLAB_PLAYLIST " + playlistName + " " + collaboratorsInput);
+            out.flush(); // Ensure the command is sent immediately
+
+            System.out.println("Command sent to server, waiting for response...");
+
+            // Read and process response with timeout handling
+            String response = safeReadLine();
+            if (response == null) {
+                handleConnectionLoss("No response from server");
+                return;
+            }
+
+            System.out.println("==================================================================================");
+            if (response.startsWith("COLLAB_PLAYLIST_CREATED")) {
+                System.out.println("✅ Collaborative playlist created successfully!");
+
+                // Check if there were warnings (users not found)
+                if (response.contains("WARNINGS") || response.contains("not found")) {
+                    System.out.println("⚠️ Note: " + response.substring(response.indexOf(":") + 1).trim());
+                }
+            } else if (response.contains("FAIL")) {
+                System.out.println("❌ Failed to create playlist: " + response);
+            } else {
+                System.out.println("Server response: " + response);
+            }
+
+            // If error indicates user is not logged in, reconnect
+            if (response.contains("No user logged in")) {
+                System.out.println("Session expired. Please log in again.");
+                mainUI.setLoggedIn(false);
+            }
+            System.out.println("==================================================================================");
+
+        } catch (Exception e) {
+            System.out.println("==================================================================================");
+            System.out.println("Error during collaborative playlist creation: " + e.getMessage());
+            System.out.println("==================================================================================");
+            throw e;
         }
-
-        // Traiter la réponse normale
-        System.out.println("==================================================================================");
-        System.out.println(response);
-
-        // Si l'erreur indique que l'utilisateur n'est pas connecté, le reconnecter
-        if (response.contains("No user logged in")) {
-            System.out.println("Session expired. Please log in again.");
-            mainUI.setLoggedIn(false);
-        }
-
-        System.out.println("==================================================================================");
     }
 
     /**
-     * Crée une nouvelle playlist
+     * Creates a new playlist
      */
     private void createPlaylist() throws IOException {
         System.out.println("==================================================================================");
@@ -132,90 +174,120 @@ public class PlaylistManagerUI {
         System.out.println("==================================================================================");
         String playlistName = scanner.nextLine();
 
-        out.println("CREATE_PLAYLIST " + playlistName);
+        try {
+            out.println("CREATE_PLAYLIST " + playlistName);
+            String response = safeReadLine();
 
-        String response = in.readLine();
-        if (response.startsWith("PLAYLIST_CREATED")) {
+            if (response == null) {
+                handleConnectionLoss("No response when creating playlist");
+                return;
+            }
+
             System.out.println("==================================================================================");
-            System.out.println("Playlist created!");
+            if (response.startsWith("PLAYLIST_CREATED")) {
+                System.out.println("✅ Playlist created!");
+            } else {
+                System.out.println("Error: " + response);
+            }
             System.out.println("==================================================================================");
-        } else {
+        } catch (Exception e) {
             System.out.println("==================================================================================");
-            System.out.println("Error: " + response);
+            System.out.println("Error creating playlist: " + e.getMessage());
             System.out.println("==================================================================================");
+            throw e; // Rethrow to handle at higher level if needed
         }
     }
 
     /**
-     * Affiche les playlists
+     * Displays playlists
      */
     private void displayPlaylists() throws IOException {
         System.out.println("==================================================================================");
         System.out.println("Your playlists:");
         System.out.println("==================================================================================");
 
-        out.println("GET_PLAYLISTS");
+        try {
+            out.println("GET_PLAYLISTS");
 
-        String response;
-        List<String> playlists = new ArrayList<>();
-        while ((response = readLineFromServer()) != null && !response.equals("END")) {
-            playlists.add(response);
-        }
+            String response;
+            List<String> playlists = new ArrayList<>();
 
-        // Si déconnexion, retourner immédiatement
-        if (response == null) return;
-
-        if (playlists.isEmpty()) {
-            System.out.println("==================================================================================");
-            System.out.println("No playlist created.");
-            System.out.println("==================================================================================");
-            return;
-        }
-
-        // Afficher chaque playlist avec ses chansons
-        for (String playlistName : playlists) {
-            System.out.println("==================================================================================");
-            System.out.println("Playlist: " + playlistName);
-            System.out.println("==================================================================================");
-
-            // Récupérer les chansons de cette playlist
-            out.println("GET_PLAYLIST_SONGS " + playlistName);
-            response = in.readLine();
-
-            if (!response.startsWith("SUCCESS")) {
-                System.out.println("Error retrieving songs: " + response);
-                continue;
+            while ((response = safeReadLine()) != null && !response.equals("END")) {
+                playlists.add(response);
             }
 
-            List<String> songs = new ArrayList<>();
-            while (!(response = in.readLine()).equals("END")) {
-                songs.add(response);
+            // If response is null, connection was lost
+            if (response == null) {
+                handleConnectionLoss("Lost connection while retrieving playlists");
+                return;
             }
 
-            // Afficher les chansons
-            if (songs.isEmpty()) {
-                System.out.println("This playlist is empty.");
-            } else {
-                System.out.println("Songs:");
-                int index = 0;
-                for (String song : songs) {
-                    String[] parts = song.split("\\|");
-                    if (parts.length > 0) {
-                        String title = parts[0];
-                        String artist = parts.length > 1 ? parts[1] : "Unknown";
-                        System.out.println(index + ": " + title + " by " + artist);
-                        index++;
+            if (playlists.isEmpty()) {
+                System.out.println("==================================================================================");
+                System.out.println("No playlist created.");
+                System.out.println("==================================================================================");
+                return;
+            }
+
+            // Display each playlist with its songs
+            for (String playlistName : playlists) {
+                System.out.println("==================================================================================");
+                System.out.println("Playlist: " + playlistName);
+                System.out.println("==================================================================================");
+
+                // Get songs for this playlist
+                out.println("GET_PLAYLIST_SONGS " + playlistName);
+                response = safeReadLine();
+
+                if (response == null) {
+                    handleConnectionLoss("Lost connection while retrieving playlist songs");
+                    return;
+                }
+
+                if (!response.startsWith("SUCCESS")) {
+                    System.out.println("Error retrieving songs: " + response);
+                    continue;
+                }
+
+                List<String> songs = new ArrayList<>();
+                while (!(response = safeReadLine()).equals("END")) {
+                    if (response == null) {
+                        handleConnectionLoss("Lost connection while retrieving playlist songs");
+                        return;
+                    }
+                    songs.add(response);
+                }
+
+                // Display songs
+                if (songs.isEmpty()) {
+                    System.out.println("This playlist is empty.");
+                } else {
+                    System.out.println("Songs:");
+                    int index = 0;
+                    for (String song : songs) {
+                        String[] parts = song.split("\\|");
+                        if (parts.length > 0) {
+                            String title = parts[0];
+                            String artist = parts.length > 1 ? parts[1] : "Unknown";
+                            System.out.println(index + ": " + title + " by " + artist);
+                            index++;
+                        }
                     }
                 }
             }
+            System.out.println("==================================================================================");
+        } catch (Exception e) {
+            System.out.println("==================================================================================");
+            System.out.println("Error displaying playlists: " + e.getMessage());
+            System.out.println("==================================================================================");
+            throw e;
         }
-        System.out.println("==================================================================================");
     }
 
     /**
-     * Ajoute une chanson à une playlist
+     * Adds a song to a playlist
      */
-    private void addSongToPlaylist() {
+    private void addSongToPlaylist() throws IOException {
         try {
             System.out.println("==================================================================================");
             System.out.println("Playlist name: ");
@@ -226,13 +298,10 @@ public class PlaylistManagerUI {
             // First, ensure we have the playlist from the server
             out.println("CHECK_PLAYLIST " + playlistName);
 
-            // Lire la réponse et vérifier si elle est null (connexion fermée)
-            String response = in.readLine();
+            // Read response and check if it's null (closed connection)
+            String response = safeReadLine();
             if (response == null) {
-                System.out.println("==================================================================================");
-                System.out.println("Lost connection to server. Please restart the application.");
-                System.out.println("==================================================================================");
-                mainUI.setExitRequested(true); // Demander à quitter l'application
+                handleConnectionLoss("No response when checking playlist");
                 return;
             }
 
@@ -249,18 +318,15 @@ public class PlaylistManagerUI {
             String line;
             List<String> songs = new ArrayList<>();
 
-            // Utiliser une boucle plus robuste qui vérifie si line est null
-            while ((line = in.readLine()) != null && !line.equals("END")) {
+            // Use a more robust loop that checks if line is null
+            while ((line = safeReadLine()) != null && !line.equals("END")) {
                 System.out.println(line);
                 songs.add(line);
             }
 
-            // Vérifier à nouveau si nous avons perdu la connexion
+            // Check again if we lost connection
             if (line == null) {
-                System.out.println("==================================================================================");
-                System.out.println("Lost connection to server. Please restart the application.");
-                System.out.println("==================================================================================");
-                mainUI.setExitRequested(true);
+                handleConnectionLoss("No end marker received when getting songs");
                 return;
             }
 
@@ -279,29 +345,25 @@ public class PlaylistManagerUI {
             // Send the command with proper formatting
             out.println("ADD_SONG_TO_PLAYLIST " + playlistName + " " + songTitle);
 
-            // Encore une vérification pour null
-            response = in.readLine();
+            // One more null check
+            response = safeReadLine();
             if (response == null) {
-                System.out.println("==================================================================================");
-                System.out.println("Lost connection to server. Please restart the application.");
-                System.out.println("==================================================================================");
-                mainUI.setExitRequested(true);
+                handleConnectionLoss("No response when adding song to playlist");
                 return;
             }
 
             System.out.println(response);
             System.out.println("==================================================================================");
-        } catch (IOException e) {
+        } catch (Exception e) {
             System.err.println("Error while communicating with server: " + e.getMessage());
             System.out.println("==================================================================================");
-            // En cas d'erreur de communication, suggérer de redémarrer l'application
-            mainUI.setExitRequested(true);
+            throw e;
         }
     }
 
     /**
-     * Version améliorée pour supprimer une chanson d'une playlist
-     * Cette méthode affiche d'abord les chansons avec des indices pour faciliter la sélection
+     * Improved version to remove a song from a playlist
+     * This method first displays songs with indices for easier selection
      */
     private void removeSongFromPlaylist() throws IOException {
         System.out.println("==================================================================================");
@@ -309,189 +371,265 @@ public class PlaylistManagerUI {
         System.out.println("==================================================================================");
         String playlistName = scanner.nextLine().trim();
 
-        // Vérifier d'abord si la playlist existe
-        out.println("CHECK_PLAYLIST " + playlistName);
-        String response = in.readLine();
-
-        if ("PLAYLIST_NOT_FOUND".equals(response)) {
-            System.out.println("==================================================================================");
-            System.out.println("Playlist not found.");
-            System.out.println("==================================================================================");
-            return;
-        }
-
-        // Récupérer les chansons de la playlist
-        out.println("GET_PLAYLIST_SONGS " + playlistName);
-        response = in.readLine();
-
-        if (!response.startsWith("SUCCESS")) {
-            System.out.println("==================================================================================");
-            System.out.println(response);
-            System.out.println("==================================================================================");
-            return;
-        }
-
-        // Stocker les chansons pour pouvoir les référencer par index
-        List<String> songTitles = new ArrayList<>();
-        System.out.println("==================================================================================");
-        System.out.println("Songs in playlist " + playlistName + ":");
-        System.out.println("==================================================================================");
-
-        while (!(response = in.readLine()).equals("END")) {
-            // Format attendu: titre|artiste|album|genre|durée|chemin
-            String[] parts = response.split("\\|");
-            if (parts.length > 0) {
-                String title = parts[0];
-                songTitles.add(title);
-                System.out.println((songTitles.size() - 1) + ": " + response);
-            }
-        }
-
-        if (songTitles.isEmpty()) {
-            System.out.println("==================================================================================");
-            System.out.println("No songs in this playlist.");
-            System.out.println("==================================================================================");
-            return;
-        }
-
-        System.out.println("==================================================================================");
-        System.out.println("Enter the index of the song to be deleted: ");
-        System.out.println("==================================================================================");
-
-        int songIndex;
         try {
-            songIndex = Integer.parseInt(scanner.nextLine().trim());
-            if (songIndex < 0 || songIndex >= songTitles.size()) {
+            // First check if playlist exists
+            out.println("CHECK_PLAYLIST " + playlistName);
+            String response = safeReadLine();
+
+            if (response == null) {
+                handleConnectionLoss("No response when checking playlist");
+                return;
+            }
+
+            if ("PLAYLIST_NOT_FOUND".equals(response)) {
                 System.out.println("==================================================================================");
-                System.out.println("Invalid song index.");
+                System.out.println("Playlist not found.");
                 System.out.println("==================================================================================");
                 return;
             }
-        } catch (NumberFormatException e) {
+
+            // Get songs from playlist
+            out.println("GET_PLAYLIST_SONGS " + playlistName);
+            response = safeReadLine();
+
+            if (response == null) {
+                handleConnectionLoss("No response when getting playlist songs");
+                return;
+            }
+
+            if (!response.startsWith("SUCCESS")) {
+                System.out.println("==================================================================================");
+                System.out.println(response);
+                System.out.println("==================================================================================");
+                return;
+            }
+
+            // Store songs for reference by index
+            List<String> songTitles = new ArrayList<>();
             System.out.println("==================================================================================");
-            System.out.println("Please enter a valid number.");
+            System.out.println("Songs in playlist " + playlistName + ":");
             System.out.println("==================================================================================");
-            return;
+
+            while (!(response = safeReadLine()).equals("END")) {
+                if (response == null) {
+                    handleConnectionLoss("No end marker received when getting playlist songs");
+                    return;
+                }
+
+                // Expected format: title|artist|album|genre|duration|path
+                String[] parts = response.split("\\|");
+                if (parts.length > 0) {
+                    String title = parts[0];
+                    songTitles.add(title);
+                    System.out.println((songTitles.size() - 1) + ": " + response);
+                }
+            }
+
+            if (songTitles.isEmpty()) {
+                System.out.println("==================================================================================");
+                System.out.println("No songs in this playlist.");
+                System.out.println("==================================================================================");
+                return;
+            }
+
+            System.out.println("==================================================================================");
+            System.out.println("Enter the index of the song to be deleted: ");
+            System.out.println("==================================================================================");
+
+            int songIndex;
+            try {
+                songIndex = Integer.parseInt(scanner.nextLine().trim());
+                if (songIndex < 0 || songIndex >= songTitles.size()) {
+                    System.out.println("==================================================================================");
+                    System.out.println("Invalid song index.");
+                    System.out.println("==================================================================================");
+                    return;
+                }
+            } catch (NumberFormatException e) {
+                System.out.println("==================================================================================");
+                System.out.println("Please enter a valid number.");
+                System.out.println("==================================================================================");
+                return;
+            }
+
+            // Get the title of the song at specified index
+            String songTitle = songTitles.get(songIndex);
+
+            // Send command to server
+            out.println("REMOVE_SONG_FROM_PLAYLIST " + playlistName + " " + songTitle);
+            response = safeReadLine();
+
+            if (response == null) {
+                handleConnectionLoss("No response when removing song from playlist");
+                return;
+            }
+
+            System.out.println("==================================================================================");
+            System.out.println(response);
+            System.out.println("==================================================================================");
+        } catch (Exception e) {
+            System.out.println("==================================================================================");
+            System.out.println("Error removing song: " + e.getMessage());
+            System.out.println("==================================================================================");
+            throw e;
         }
-
-        // Obtenir le titre de la chanson à l'index spécifié
-        String songTitle = songTitles.get(songIndex);
-
-        // Envoyer la commande au serveur
-        out.println("REMOVE_SONG_FROM_PLAYLIST " + playlistName + " " + songTitle);
-        response = in.readLine();
-
-        System.out.println("==================================================================================");
-        System.out.println(response);
-        System.out.println("==================================================================================");
     }
 
+    /**
+     * Reorders songs in a playlist
+     */
     private void reorderSongsInPlaylist() throws IOException {
         System.out.println("==================================================================================");
         System.out.println("Enter the name of the playlist: ");
         String playlistName = scanner.nextLine().trim();
         System.out.println("==================================================================================");
 
-        // Vérifier d'abord si la playlist existe
-        out.println("CHECK_PLAYLIST " + playlistName);
-        String response = in.readLine();
-
-        if ("PLAYLIST_NOT_FOUND".equals(response)) {
-            System.out.println("==================================================================================");
-            System.out.println("Playlist not found.");
-            System.out.println("==================================================================================");
-            return;
-        }
-
-        // Récupérer les chansons de la playlist
-        out.println("GET_PLAYLIST_SONGS " + playlistName);
-        response = in.readLine();
-
-        if (!response.startsWith("SUCCESS")) {
-            System.out.println("==================================================================================");
-            System.out.println(response);
-            System.out.println("==================================================================================");
-            return;
-        }
-
-        // Stocker les chansons pour pouvoir les référencer par index
-        List<String> songTitles = new ArrayList<>();
-        System.out.println("==================================================================================");
-        System.out.println("Songs in playlist " + playlistName + ":");
-        System.out.println("==================================================================================");
-
-        while (!(response = in.readLine()).equals("END")) {
-            // Format attendu: titre|artiste|album|genre|durée|chemin
-            String[] parts = response.split("\\|");
-            if (parts.length > 0) {
-                String title = parts[0];
-                songTitles.add(title);
-                String artist = parts.length > 1 ? parts[1] : "Unknown";
-                System.out.println((songTitles.size() - 1) + ": " + title + " by " + artist);
-            }
-        }
-
-        if (songTitles.isEmpty()) {
-            System.out.println("==================================================================================");
-            System.out.println("No songs in this playlist.");
-            System.out.println("==================================================================================");
-            return;
-        }
-
-        // Demander quelle chanson déplacer
-        System.out.println("==================================================================================");
-        System.out.println("Enter the index of the song to move: ");
-        int fromIndex;
         try {
-            fromIndex = Integer.parseInt(scanner.nextLine().trim());
-            if (fromIndex < 0 || fromIndex >= songTitles.size()) {
-                System.out.println("Invalid index.");
+            // First check if playlist exists
+            out.println("CHECK_PLAYLIST " + playlistName);
+            String response = safeReadLine();
+
+            if (response == null) {
+                handleConnectionLoss("No response when checking playlist");
                 return;
             }
-        } catch (NumberFormatException e) {
-            System.out.println("Please enter a valid number.");
-            return;
-        }
 
-        // Demander à quelle position la déplacer
-        System.out.println("Enter the new position for the song (0 to " + (songTitles.size() - 1) + "): ");
-        int toIndex;
-        try {
-            toIndex = Integer.parseInt(scanner.nextLine().trim());
-            if (toIndex < 0 || toIndex >= songTitles.size()) {
-                System.out.println("Invalid position.");
+            if ("PLAYLIST_NOT_FOUND".equals(response)) {
+                System.out.println("==================================================================================");
+                System.out.println("Playlist not found.");
+                System.out.println("==================================================================================");
                 return;
             }
-        } catch (NumberFormatException e) {
-            System.out.println("Please enter a valid number.");
-            return;
-        }
 
-        // Envoyer la commande au serveur
-        out.println("REORDER_PLAYLIST_SONG " + playlistName + " " + fromIndex + " " + toIndex);
-        response = in.readLine();
+            // Get songs from playlist
+            out.println("GET_PLAYLIST_SONGS " + playlistName);
+            response = safeReadLine();
 
-        System.out.println("==================================================================================");
-        if (response.startsWith("SUCCESS")) {
-            System.out.println("Song successfully moved.");
-        } else {
-            System.out.println("Error: " + response);
+            if (response == null) {
+                handleConnectionLoss("No response when getting playlist songs");
+                return;
+            }
+
+            if (!response.startsWith("SUCCESS")) {
+                System.out.println("==================================================================================");
+                System.out.println(response);
+                System.out.println("==================================================================================");
+                return;
+            }
+
+            // Store songs for reference by index
+            List<String> songTitles = new ArrayList<>();
+            System.out.println("==================================================================================");
+            System.out.println("Songs in playlist " + playlistName + ":");
+            System.out.println("==================================================================================");
+
+            while (!(response = safeReadLine()).equals("END")) {
+                if (response == null) {
+                    handleConnectionLoss("No end marker received when getting playlist songs");
+                    return;
+                }
+
+                // Expected format: title|artist|album|genre|duration|path
+                String[] parts = response.split("\\|");
+                if (parts.length > 0) {
+                    String title = parts[0];
+                    songTitles.add(title);
+                    String artist = parts.length > 1 ? parts[1] : "Unknown";
+                    System.out.println((songTitles.size() - 1) + ": " + title + " by " + artist);
+                }
+            }
+
+            if (songTitles.isEmpty()) {
+                System.out.println("==================================================================================");
+                System.out.println("No songs in this playlist.");
+                System.out.println("==================================================================================");
+                return;
+            }
+
+            // Ask which song to move
+            System.out.println("==================================================================================");
+            System.out.println("Enter the index of the song to move: ");
+            int fromIndex;
+            try {
+                fromIndex = Integer.parseInt(scanner.nextLine().trim());
+                if (fromIndex < 0 || fromIndex >= songTitles.size()) {
+                    System.out.println("Invalid index.");
+                    return;
+                }
+            } catch (NumberFormatException e) {
+                System.out.println("Please enter a valid number.");
+                return;
+            }
+
+            // Ask to which position to move it
+            System.out.println("Enter the new position for the song (0 to " + (songTitles.size() - 1) + "): ");
+            int toIndex;
+            try {
+                toIndex = Integer.parseInt(scanner.nextLine().trim());
+                if (toIndex < 0 || toIndex >= songTitles.size()) {
+                    System.out.println("Invalid position.");
+                    return;
+                }
+            } catch (NumberFormatException e) {
+                System.out.println("Please enter a valid number.");
+                return;
+            }
+
+            // Send command to server
+            out.println("REORDER_PLAYLIST_SONG " + playlistName + " " + fromIndex + " " + toIndex);
+            response = safeReadLine();
+
+            if (response == null) {
+                handleConnectionLoss("No response when reordering playlist");
+                return;
+            }
+
+            System.out.println("==================================================================================");
+            if (response.startsWith("SUCCESS")) {
+                System.out.println("Song successfully moved.");
+            } else {
+                System.out.println("Error: " + response);
+            }
+            System.out.println("==================================================================================");
+        } catch (Exception e) {
+            System.out.println("==================================================================================");
+            System.out.println("Error reordering songs: " + e.getMessage());
+            System.out.println("==================================================================================");
+            throw e;
         }
-        System.out.println("==================================================================================");
     }
 
     /**
-     * Lit une ligne du serveur et gère la déconnexion
-     * @return la ligne lue ou null en cas de déconnexion
+     * Safely reads a line from the server with better error handling
+     */
+    private String safeReadLine() {
+        try {
+            return in.readLine();
+        } catch (IOException e) {
+            System.err.println("Error reading from server: " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Reads a line from server and handles disconnection
      */
     private String readLineFromServer() throws IOException {
-        String line = in.readLine();
+        String line = safeReadLine();
         if (line == null) {
-            System.out.println("==================================================================================");
-            System.out.println("Lost connection to server. Please restart the application.");
-            System.out.println("==================================================================================");
-            mainUI.setExitRequested(true);
+            handleConnectionLoss("Connection lost while reading from server");
         }
         return line;
+    }
+
+    /**
+     * Handles a connection loss with detailed message
+     */
+    private void handleConnectionLoss(String reason) {
+        System.out.println("==================================================================================");
+        System.out.println("Lost connection to server: " + reason);
+        System.out.println("Please restart the application.");
+        System.out.println("==================================================================================");
+        mainUI.setExitRequested(true);
     }
 }

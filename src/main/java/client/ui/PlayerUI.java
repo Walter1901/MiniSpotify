@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.Scanner;
 
 /**
- * Interface utilisateur pour le lecteur audio
+ * User interface for audio player
  */
 public class PlayerUI {
     private UserInterface mainUI;
@@ -29,14 +29,14 @@ public class PlayerUI {
     private PlaybackService playbackService;
     private AudioPlayer audioPlayer;
 
-    // Variables pour gérer l'état de lecture
+    // Variables to manage playback state
     private boolean isPlaying = false;
     private boolean isPaused = false;
     private long pausePosition = 0;
     private String currentSongTitle = null;
 
     /**
-     * Constructeur
+     * Constructor
      */
     public PlayerUI(UserInterface mainUI, BufferedReader in, PrintWriter out, Scanner scanner) {
         this.mainUI = mainUI;
@@ -48,7 +48,7 @@ public class PlayerUI {
     }
 
     /**
-     * Démarre le lecteur
+     * Starts the player
      */
     public void startPlayer() throws IOException {
         System.out.println("==================================================================================");
@@ -74,7 +74,7 @@ public class PlayerUI {
         System.out.println("==================================================================================");
         String playlistName = scanner.nextLine();
 
-        // Obtenir les chansons de la playlist
+        // Get the songs from the playlist
         out.println("GET_PLAYLIST_SONGS " + playlistName);
         response = in.readLine();
 
@@ -83,10 +83,10 @@ public class PlayerUI {
             return;
         }
 
-        // Créer la playlist locale
+        // Create local playlist
         DoublyLinkedPlaylist playlist = new DoublyLinkedPlaylist();
 
-        // Lire les chansons
+        // Read songs
         while (!(response = in.readLine()).equals("END")) {
             String[] songData = response.split("\\|");
             if (songData.length >= 2) {
@@ -96,7 +96,7 @@ public class PlayerUI {
                 String genre = songData.length > 3 ? songData[3] : "Unknown";
                 int duration = songData.length > 4 && !songData[4].isEmpty() ? Integer.parseInt(songData[4]) : 0;
 
-                // Le chemin du fichier est la DERNIÈRE partie
+                // File path is the LAST part
                 String filePath = songData.length > 5 ? songData[5] : null;
 
                 Song song = new Song(title, artist, album, genre, duration);
@@ -109,23 +109,23 @@ public class PlayerUI {
             }
         }
 
-        // Informer le serveur que la playlist est chargée
+        // Inform the server that the playlist is loaded
         out.println("LOAD_PLAYLIST " + playlistName);
         response = in.readLine();
         System.out.println("Loading playlist response: " + response);
 
-        // IMPORTANT: Initialiser le service AVANT de choisir le mode de lecture
+        // IMPORTANT: Initialize service BEFORE choosing playback mode
         playbackService = new PlaybackService(playlist, null);
 
-        // Choix du mode après avoir initialisé le service
+        // Choose mode after initializing service
         choosePlaybackMode();
 
-        // Boucle de contrôle du lecteur
+        // Player control loop
         controlPlayerLoop(playlist);
     }
 
     /**
-     * Démarre le lecteur avec une playlist déjà chargée (pour les playlists partagées)
+     * Starts the player with a pre-loaded playlist (for shared playlists)
      */
     public void startPlayerWithLoadedPlaylist(String playlistName, String ownerUsername) throws IOException {
         System.out.println("==================================================================================");
@@ -133,13 +133,13 @@ public class PlayerUI {
         System.out.println("Playing shared playlist: " + playlistName + " (shared by " + ownerUsername + ")");
         System.out.println("==================================================================================");
 
-        // Choix du mode de lecture
+        // Choose playback mode
         choosePlaybackMode();
 
-        // Créer la playlist locale
+        // Create local playlist
         DoublyLinkedPlaylist playlist = new DoublyLinkedPlaylist();
 
-        // Obtenir les chansons de la playlist partagée
+        // Get songs from shared playlist
         out.println("GET_SHARED_PLAYLIST_SONGS " + ownerUsername + " " + playlistName);
         String response = in.readLine();
 
@@ -148,7 +148,7 @@ public class PlayerUI {
             return;
         }
 
-        // Lire les chansons
+        // Read songs
         while (!(response = in.readLine()).equals("END")) {
             String[] songData = response.split("\\|");
             if (songData.length >= 2) {
@@ -158,7 +158,7 @@ public class PlayerUI {
                 String genre = songData.length > 3 ? songData[3] : "Unknown";
                 int duration = songData.length > 4 && !songData[4].isEmpty() ? Integer.parseInt(songData[4]) : 0;
 
-                // Le chemin du fichier est la DERNIÈRE partie
+                // File path is the LAST part
                 String filePath = songData.length > 5 ? songData[5] : null;
 
                 Song song = new Song(title, artist, album, genre, duration);
@@ -171,28 +171,28 @@ public class PlayerUI {
             }
         }
 
-        // Boucle de contrôle du lecteur
+        // Player control loop
         controlPlayerLoop(playlist);
     }
 
     /**
-     * Boucle de contrôle du lecteur (factorisation du code commun)
+     * Player control loop (factored common code)
      */
     private void controlPlayerLoop(DoublyLinkedPlaylist playlist) throws IOException {
-        // Initialiser le service avec la playlist
+        // Initialize service with playlist
         playbackService = new PlaybackService(playlist, null);
 
-        // Configuration du mode de lecture
+        // Configure playback mode
         if (playbackService.getCurrentPlayMode() == null) {
-            playbackService.setPlaybackMode(new SequentialPlayState()); // Mode par défaut
+            playbackService.setPlaybackMode(new SequentialPlayState()); // Default mode
         }
 
-        // Réinitialiser l'état de lecture
+        // Reset playback state
         isPlaying = false;
         isPaused = false;
         pausePosition = 0;
 
-        // Boucle de contrôle
+        // Control loop
         String input;
         boolean exitPlayer = false;
 
@@ -205,7 +205,7 @@ public class PlayerUI {
             switch (input) {
                 case "play":
                     if (isPaused) {
-                        // Si on était en pause, reprendre la lecture
+                        // If paused, resume playback
                         out.println("PLAYER_PLAY resume");
                         String response = in.readLine();
                         System.out.println(response);
@@ -213,16 +213,19 @@ public class PlayerUI {
                         isPlaying = true;
                         isPaused = false;
                     } else {
-                        // Nouvelle lecture
+                        // New playback
                         out.println("PLAYER_PLAY");
                         String response = in.readLine();
                         System.out.println(response);
 
-                        // Obtenir la chanson actuelle et la jouer
+                        // Get current song and play
                         Song currentSong = playbackService.getCurrentSong();
                         if (currentSong != null && currentSong.getFilePath() != null) {
                             audioPlayer.play(currentSong.getFilePath());
                             currentSongTitle = currentSong.getTitle();
+                            System.out.println("Now playing: " + currentSongTitle);
+                        } else {
+                            System.out.println("Cannot play: song or file path is missing");
                         }
 
                         isPlaying = true;
@@ -232,15 +235,18 @@ public class PlayerUI {
                     break;
 
                 case "pause":
-                    if (isPlaying) {
+                    if (isPlaying && !isPaused) {
                         out.println("PLAYER_PAUSE");
                         String response = in.readLine();
                         System.out.println(response);
 
-                        // Pause du lecteur audio et récupération de sa position
-                        audioPlayer.pause();
+                        // Pause player and get position
+                        pausePosition = audioPlayer.pause();
                         isPlaying = false;
                         isPaused = true;
+                        System.out.println("Playback paused" + (currentSongTitle != null ? ": " + currentSongTitle : ""));
+                    } else if (isPaused) {
+                        System.out.println("Already paused.");
                     } else {
                         System.out.println("No music is playing.");
                     }
@@ -251,11 +257,12 @@ public class PlayerUI {
                     String stopResponse = in.readLine();
                     System.out.println(stopResponse);
 
-                    // Arrêt complet du lecteur
+                    // Full stop
                     audioPlayer.stop();
                     isPlaying = false;
                     isPaused = false;
                     pausePosition = 0;
+                    System.out.println("Playback stopped");
                     break;
 
                 case "next":
@@ -263,17 +270,20 @@ public class PlayerUI {
                     String nextResponse = in.readLine();
                     System.out.println(nextResponse);
 
-                    // Arrêter la lecture actuelle
+                    // Stop current playback
                     audioPlayer.stop();
 
-                    // Passer à la chanson suivante
+                    // Go to next song
                     playbackService.next();
 
-                    // Lecture automatique de la nouvelle chanson
+                    // Automatic playback of the new song
                     Song nextSong = playbackService.getCurrentSong();
                     if (nextSong != null && nextSong.getFilePath() != null) {
                         audioPlayer.play(nextSong.getFilePath());
                         currentSongTitle = nextSong.getTitle();
+                        System.out.println("Now playing: " + currentSongTitle);
+                    } else {
+                        System.out.println("Cannot play next song: song or file path is missing");
                     }
 
                     isPlaying = true;
@@ -286,17 +296,20 @@ public class PlayerUI {
                     String prevResponse = in.readLine();
                     System.out.println(prevResponse);
 
-                    // Arrêter la lecture actuelle
+                    // Stop current playback
                     audioPlayer.stop();
 
-                    // Revenir à la chanson précédente
+                    // Go to previous song
                     playbackService.previous();
 
-                    // Lecture automatique de la nouvelle chanson
+                    // Automatic playback of the new song
                     Song prevSong = playbackService.getCurrentSong();
                     if (prevSong != null && prevSong.getFilePath() != null) {
                         audioPlayer.play(prevSong.getFilePath());
                         currentSongTitle = prevSong.getTitle();
+                        System.out.println("Now playing: " + currentSongTitle);
+                    } else {
+                        System.out.println("Cannot play previous song: song or file path is missing");
                     }
 
                     isPlaying = true;
@@ -305,7 +318,7 @@ public class PlayerUI {
                     break;
 
                 case "exit":
-                    // Important: Arrêter la lecture avant de quitter
+                    // Important: Stop playback before exiting
                     if (isPlaying || isPaused) {
                         audioPlayer.stop();
                         out.println("PLAYER_STOP");
@@ -318,7 +331,7 @@ public class PlayerUI {
                         }
                     }
 
-                    // Notifier le serveur de la sortie du mode player
+                    // Notify server of player mode exit
                     out.println("PLAYER_EXIT");
 
                     try {
@@ -331,7 +344,7 @@ public class PlayerUI {
 
                     System.out.println("Return to main menu..");
 
-                    // Réinitialiser l'état sans dépendre des réponses du serveur
+                    // Reset state without depending on server responses
                     isPlaying = false;
                     isPaused = false;
                     pausePosition = 0;
@@ -346,7 +359,7 @@ public class PlayerUI {
     }
 
     /**
-     * Choix du mode de lecture
+     * Choose playback mode
      */
     private void choosePlaybackMode() throws IOException {
         System.out.println("Choose reading mode:");
@@ -359,25 +372,25 @@ public class PlayerUI {
         out.println("SET_PLAYBACK_MODE " + modeChoice);
         String response = in.readLine();
 
-        // SUPPRIMER CETTE LIGNE:
-        // this.selectedMode = modeChoice;
-
-        // Si playbackService est null, informer l'utilisateur
+        // If playbackService is null, inform user
         if (playbackService == null) {
             System.out.println("Error: Playback service not initialized yet.");
-            return; // Sortir de la méthode sans tenter d'utiliser playbackService
+            return; // Exit method without attempting to use playbackService
         }
 
-        // Configuration du mode de lecture seulement si playbackService n'est pas null
+        // Configure playback mode only if playbackService is not null
         switch (modeChoice) {
             case "1":
                 playbackService.setPlaybackMode(new SequentialPlayState());
+                System.out.println("Sequential mode selected");
                 break;
             case "2":
                 playbackService.setPlaybackMode(new ShufflePlayState());
+                System.out.println("Shuffle mode selected");
                 break;
             case "3":
                 playbackService.setPlaybackMode(new RepeatPlayState());
+                System.out.println("Repeat mode selected");
                 break;
             default:
                 System.out.println("Unknown mode. Sequential mode selected by default.");
@@ -385,34 +398,7 @@ public class PlayerUI {
         }
 
         if (!response.startsWith("SUCCESS")) {
-            System.out.println("Unknown mode. Sequential mode selected by default.");
-        }
-    }
-
-    /**
-     * Applique le mode de lecture au service
-     */
-    private void applyPlaybackMode(String modeChoice) {
-        // Vérifier que le service est initialisé
-        if (playbackService == null) {
-            System.out.println("Playback service not initialized yet.");
-            return;
-        }
-
-        // Configuration du mode de lecture
-        switch (modeChoice) {
-            case "1":
-                playbackService.setPlaybackMode(new SequentialPlayState());
-                break;
-            case "2":
-                playbackService.setPlaybackMode(new ShufflePlayState());
-                break;
-            case "3":
-                playbackService.setPlaybackMode(new RepeatPlayState());
-                break;
-            default:
-                System.out.println("Unknown mode. Sequential mode selected by default.");
-                playbackService.setPlaybackMode(new SequentialPlayState());
+            System.out.println("Server response: " + response);
         }
     }
 }

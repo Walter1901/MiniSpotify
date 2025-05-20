@@ -22,9 +22,14 @@ public class StoppedState implements PlaybackState {
 
     @Override
     public void next(PlaybackService service, DoublyLinkedPlaylist playlist) {
-        System.out.println("⚠️ Impossible de passer à la chanson suivante, la musique est arrêtée.");
+        // Allow moving to next song even when stopped
+        if (playlist != null && !playlist.isEmpty()) {
+            System.out.println("Moving to next song while stopped.");
+            service.getCurrentPlayMode().next(service, playlist);
+        } else {
+            System.out.println("⚠️ Cannot move to next song: playlist is empty or not defined.");
+        }
     }
-
     @Override
     public void previous(PlaybackService service, DoublyLinkedPlaylist playlist) {
         System.out.println("⚠️ Impossible de revenir à la chanson précédente, la musique est arrêtée.");
