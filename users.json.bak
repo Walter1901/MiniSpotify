@@ -146,13 +146,16 @@
             "genre": "Electronic",
             "duration": 0,
             "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\Dj Aka-m e Dj Malvado Feat Dody - Mussulo.mp3"
+          },
+          {
+            "title": "Melrose Place",
+            "artist": "Keblack Ft. Guy2Bezbar",
+            "album": "Rap",
+            "genre": "Hip-Hop",
+            "duration": 0,
+            "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\Keblack Ft. Guy2Bezbar - Melrose Place (Clip Officiel).mp3"
           }
         ]
-      },
-      {
-        "name": "SEAT",
-        "type": "standard",
-        "songs": []
       }
     ],
     "followedUsers": [
