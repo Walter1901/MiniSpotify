@@ -1,7 +1,11 @@
 package client.ui;
 
 import client.commands.*;
-import playback.*;
+import playback.AudioPlayer;
+import playback.PlaybackService;
+import playback.RepeatPlayState;
+import playback.SequentialPlayState;
+import playback.ShufflePlayState;
 import server.music.DoublyLinkedPlaylist;
 import server.music.Song;
 import client.ui.UserInterface;
@@ -23,7 +27,7 @@ public class PlayerUI {
     private Scanner scanner;
     private CommandInvoker commandInvoker;
     private PlaybackService playbackService;
-    private StreamingAudioPlayer streamingPlayer;
+    private AudioPlayer audioPlayer;
 
     // Variables to manage playback state
     private boolean isPlaying = false;
@@ -40,7 +44,7 @@ public class PlayerUI {
         this.out = out;
         this.scanner = scanner;
         this.commandInvoker = new CommandInvoker();
-        this.streamingPlayer = new StreamingAudioPlayer(); // Utiliser le nouveau player
+        this.audioPlayer = new AudioPlayer();
     }
 
     /**
@@ -177,160 +181,179 @@ public class PlayerUI {
     private void controlPlayerLoop(DoublyLinkedPlaylist playlist) throws IOException {
         // Initialize service with playlist
         playbackService = new PlaybackService(playlist, null);
+
+        // Configure playback mode
         if (playbackService.getCurrentPlayMode() == null) {
-            playbackService.setPlaybackMode(new SequentialPlayState());
+            playbackService.setPlaybackMode(new SequentialPlayState()); // Default mode
         }
 
-        // État initial
+        // Reset playback state
         isPlaying = false;
         isPaused = false;
         pausePosition = 0;
 
+        // Control loop
         String input;
         boolean exitPlayer = false;
 
         while (!exitPlayer) {
             System.out.println("==================================================================================");
-            System.out.println("Commands: play, pause, resume, stop, next, prev, exit");
-            System.out.println("Current status: " +
-                    (streamingPlayer.isPlaying() ?
-                            (streamingPlayer.isPaused() ? "PAUSED" : "PLAYING") : "STOPPED"));
+            System.out.println("Enter a command (play, pause, stop, next, prev, exit): ");
             System.out.println("==================================================================================");
             input = scanner.nextLine().trim().toLowerCase();
 
             switch (input) {
                 case "play":
-                    if (streamingPlayer.isPaused()) {
-                        // Si en pause, reprendre
-                        streamingPlayer.resume();
-                        out.println("PLAYER_RESUME");
+                    if (isPaused) {
+                        // If paused, resume playback
+                        out.println("PLAYER_PLAY resume");
                         String response = in.readLine();
-                        System.out.println("▶️ " + response);
-                    } else if (!streamingPlayer.isPlaying()) {
-                        // Nouvelle lecture
+                        System.out.println(response);
+                        audioPlayer.resume();
+                        isPlaying = true;
+                        isPaused = false;
+                    } else {
+                        // New playback
+                        out.println("PLAYER_PLAY");
+                        String response = in.readLine();
+                        System.out.println(response);
+
+                        // Get current song and play
                         Song currentSong = playbackService.getCurrentSong();
                         if (currentSong != null && currentSong.getFilePath() != null) {
-                            // Utiliser le streaming au lieu de la lecture locale
-                            boolean success = streamingPlayer.playStream(
-                                    "localhost", 12345, currentSong.getFilePath()
-                            );
-
-                            if (success) {
-                                currentSongTitle = currentSong.getTitle();
-                                System.out.println("🎵 Streaming started: " + currentSongTitle);
-
-                                out.println("PLAYER_PLAY");
-                                String response = in.readLine();
-                                System.out.println(response);
-                            } else {
-                                System.out.println("❌ Failed to start streaming");
-                            }
+                            audioPlayer.play(currentSong.getFilePath());
+                            currentSongTitle = currentSong.getTitle();
+                            System.out.println("Now playing: " + currentSongTitle);
                         } else {
-                            System.out.println("❌ No song selected or file path missing");
+                            System.out.println("Cannot play: song or file path is missing");
                         }
-                    } else {
-                        System.out.println("ℹ️ Already playing. Use 'pause' to pause or 'stop' to stop.");
+
+                        isPlaying = true;
+                        isPaused = false;
+                        pausePosition = 0;
                     }
                     break;
 
                 case "pause":
-                    if (streamingPlayer.isPlaying() && !streamingPlayer.isPaused()) {
-                        streamingPlayer.pause();
+                    if (isPlaying && !isPaused) {
                         out.println("PLAYER_PAUSE");
                         String response = in.readLine();
-                        System.out.println("⏸️ " + response);
-                    } else if (streamingPlayer.isPaused()) {
-                        System.out.println("ℹ️ Already paused. Use 'resume' or 'play' to continue.");
-                    } else {
-                        System.out.println("ℹ️ Nothing is playing.");
-                    }
-                    break;
+                        System.out.println(response);
 
-                case "resume":
-                    if (streamingPlayer.isPaused()) {
-                        streamingPlayer.resume();
-                        out.println("PLAYER_RESUME");
-                        String response = in.readLine();
-                        System.out.println("▶️ " + response);
+                        // Pause player and get position
+                        pausePosition = audioPlayer.pause();
+                        isPlaying = false;
+                        isPaused = true;
+                        System.out.println("Playback paused" + (currentSongTitle != null ? ": " + currentSongTitle : ""));
+                    } else if (isPaused) {
+                        System.out.println("Already paused.");
                     } else {
-                        System.out.println("ℹ️ Not paused. Use 'play' to start or 'pause' to pause.");
+                        System.out.println("No music is playing.");
                     }
                     break;
 
                 case "stop":
-                    streamingPlayer.stop();
                     out.println("PLAYER_STOP");
                     String stopResponse = in.readLine();
-                    System.out.println("⏹️ " + stopResponse);
-                    currentSongTitle = null;
+                    System.out.println(stopResponse);
+
+                    // Full stop
+                    audioPlayer.stop();
+                    isPlaying = false;
+                    isPaused = false;
+                    pausePosition = 0;
+                    System.out.println("Playback stopped");
                     break;
 
                 case "next":
-                    // Arrêter le streaming actuel
-                    streamingPlayer.stop();
-
-                    // Passer à la chanson suivante
-                    playbackService.next();
-
-                    // Démarrer le streaming de la nouvelle chanson
-                    Song nextSong = playbackService.getCurrentSong();
-                    if (nextSong != null && nextSong.getFilePath() != null) {
-                        boolean success = streamingPlayer.playStream(
-                                "localhost", 12345, nextSong.getFilePath()
-                        );
-
-                        if (success) {
-                            currentSongTitle = nextSong.getTitle();
-                            System.out.println("⏭️ Next song streaming: " + currentSongTitle);
-                        }
-                    }
-
                     out.println("PLAYER_NEXT");
                     String nextResponse = in.readLine();
                     System.out.println(nextResponse);
+
+                    // Stop current playback
+                    audioPlayer.stop();
+
+                    // Go to next song
+                    playbackService.next();
+
+                    // Automatic playback of the new song
+                    Song nextSong = playbackService.getCurrentSong();
+                    if (nextSong != null && nextSong.getFilePath() != null) {
+                        audioPlayer.play(nextSong.getFilePath());
+                        currentSongTitle = nextSong.getTitle();
+                        System.out.println("Now playing: " + currentSongTitle);
+                    } else {
+                        System.out.println("Cannot play next song: song or file path is missing");
+                    }
+
+                    isPlaying = true;
+                    isPaused = false;
+                    pausePosition = 0;
                     break;
 
                 case "prev":
-                    // Même logique que "next" mais pour la chanson précédente
-                    streamingPlayer.stop();
-                    playbackService.previous();
-
-                    Song prevSong = playbackService.getCurrentSong();
-                    if (prevSong != null && prevSong.getFilePath() != null) {
-                        boolean success = streamingPlayer.playStream(
-                                "localhost", 12345, prevSong.getFilePath()
-                        );
-
-                        if (success) {
-                            currentSongTitle = prevSong.getTitle();
-                            System.out.println("⏮️ Previous song streaming: " + currentSongTitle);
-                        }
-                    }
-
                     out.println("PLAYER_PREV");
                     String prevResponse = in.readLine();
                     System.out.println(prevResponse);
+
+                    // Stop current playback
+                    audioPlayer.stop();
+
+                    // Go to previous song
+                    playbackService.previous();
+
+                    // Automatic playback of the new song
+                    Song prevSong = playbackService.getCurrentSong();
+                    if (prevSong != null && prevSong.getFilePath() != null) {
+                        audioPlayer.play(prevSong.getFilePath());
+                        currentSongTitle = prevSong.getTitle();
+                        System.out.println("Now playing: " + currentSongTitle);
+                    } else {
+                        System.out.println("Cannot play previous song: song or file path is missing");
+                    }
+
+                    isPlaying = true;
+                    isPaused = false;
+                    pausePosition = 0;
                     break;
 
                 case "exit":
-                    // Arrêter le streaming avant de quitter
-                    streamingPlayer.stop();
-
-                    out.println("PLAYER_EXIT");
-                    try {
-                        String exitResponse = in.readLine();
-                        System.out.println("Exit response: " + exitResponse);
-                    } catch (Exception e) {
-                        System.err.println("Error reading exit response: " + e.getMessage());
+                    // Important: Stop playback before exiting
+                    if (isPlaying || isPaused) {
+                        audioPlayer.stop();
+                        out.println("PLAYER_STOP");
+                        try {
+                            String exitStopResponse = in.readLine();
+                            System.out.println("Stop response: " + exitStopResponse);
+                        } catch (Exception e) {
+                            System.err.println("Error reading stop response: " + e.getMessage());
+                            // Continue despite error
+                        }
                     }
 
-                    System.out.println("🚪 Exiting player...");
+                    // Notify server of player mode exit
+                    out.println("PLAYER_EXIT");
+
+                    try {
+                        String exitResponse = in.readLine();
+                        System.out.println("Exit player response: " + exitResponse);
+                    } catch (Exception e) {
+                        System.err.println("Error reading exit response: " + e.getMessage());
+                        // Continue despite error
+                    }
+
+                    System.out.println("Return to main menu..");
+
+                    // Reset state without depending on server responses
+                    isPlaying = false;
+                    isPaused = false;
+                    pausePosition = 0;
                     currentSongTitle = null;
                     exitPlayer = true;
                     break;
 
                 default:
-                    System.out.println("❓ Unknown command. Available: play, pause, resume, stop, next, prev, exit");
+                    System.out.println("Unknown command.");
             }
         }
     }

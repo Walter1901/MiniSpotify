@@ -12,7 +12,6 @@ import server.music.MusicLibrary;
 import server.music.MusicLoader;
 import server.config.ServerConfig;
 import server.music.Song;
-import server.streaming.StreamingServer;
 
 /**
  * Main entry point for the MiniSpotify server
@@ -26,7 +25,6 @@ public class ServerApp {
     private volatile boolean running;
     private ServerSocket serverSocket;
     private ExecutorService threadPool;
-    private StreamingServer streamingServer;
 
     /**
      * Private constructor (Singleton)
@@ -63,26 +61,19 @@ public class ServerApp {
             System.out.println("Attempting to start server on port " + port + "...");
             serverSocket = new ServerSocket(port);
             running = true;
-            System.out.println("✅ Main server started on port " + port);
-
-            // ✨ NOUVEAU: Démarrer le serveur de streaming
-            streamingServer = new StreamingServer();
-            Thread streamingThread = new Thread(() -> streamingServer.start());
-            streamingThread.setDaemon(true);
-            streamingThread.start();
-            System.out.println("✅ Streaming server started on port " + (port + 1));
-
+            System.out.println("✅ Server started on port " + port);
             System.out.println("Maximum clients: " + ServerConfig.MAX_CLIENTS);
             System.out.println("Waiting for client connections...");
 
-            // Démarrer le thread d'acceptation des connexions principales
+            // Start a separate thread for accepting connections
             Thread acceptThread = new Thread(this::acceptConnections);
             acceptThread.setDaemon(true);
             acceptThread.start();
 
-            // Hook d'arrêt modifié
+            // Add shutdown hook for graceful shutdown
             Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
 
+            // Keep main thread alive
             try {
                 acceptThread.join();
             } catch (InterruptedException e) {
@@ -133,33 +124,27 @@ public class ServerApp {
      * Server shutdown
      */
     public void shutdown() {
-            running = false;
-            System.out.println("Server shutting down...");
+        running = false;
+        System.out.println("Server shutting down...");
 
-            // ✨ NOUVEAU: Arrêter le serveur de streaming
-            if (streamingServer != null) {
-                streamingServer.stop();
-                System.out.println("Streaming server stopped");
-            }
-
-            // Arrêter le pool de threads
-            if (threadPool != null && !threadPool.isShutdown()) {
-                threadPool.shutdown();
-                System.out.println("Thread pool shutdown initiated");
-            }
-
-            // Fermer le socket principal
-            if (serverSocket != null && !serverSocket.isClosed()) {
-                try {
-                    serverSocket.close();
-                    System.out.println("Main server socket closed");
-                } catch (IOException e) {
-                    System.err.println("Error closing ServerSocket: " + e.getMessage());
-                }
-            }
-
-            System.out.println("✅ Server shutdown completed");
+        // Shutdown thread pool
+        if (threadPool != null && !threadPool.isShutdown()) {
+            threadPool.shutdown();
+            System.out.println("Thread pool shutdown initiated");
         }
+
+        // Close server socket
+        if (serverSocket != null && !serverSocket.isClosed()) {
+            try {
+                serverSocket.close();
+                System.out.println("Server socket closed");
+            } catch (IOException e) {
+                System.err.println("Error closing ServerSocket: " + e.getMessage());
+            }
+        }
+
+        System.out.println("Server shutdown completed");
+    }
 
     /**
      * Main method
