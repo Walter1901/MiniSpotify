@@ -2,33 +2,38 @@ package server.music;
 
 import users.User;
 
-import java.util.ArrayList;
-import java.util.List;
-
 /**
- * Factory pour créer différents types de playlists
- * Implémentation du pattern Factory
+ * Factory for creating different types of playlists.
+ * Implementation of the Factory Pattern.
+ * <p>
+ * This class provides static methods to create various types of playlists,
+ * encapsulating the instantiation logic and providing a consistent interface.
+ * </p>
  */
 public class PlaylistFactory {
 
     /**
-     * Type de playlist
+     * Playlist type enumeration.
      */
     public enum PlaylistType {
+        /** Standard playlist with basic functionality */
         STANDARD,
+        /** Collaborative playlist that can be edited by multiple users */
         COLLABORATIVE,
-        SMART
     }
 
     /**
-     * Crée une playlist en fonction du type demandé
+     * Creates a playlist based on the requested type.
+     *
+     * @param name The name of the playlist
+     * @param type The type of playlist to create
+     * @param owner The user who owns the playlist (required for collaborative and smart playlists)
+     * @return A new playlist of the specified type
      */
     public static Playlist createPlaylist(String name, PlaylistType type, User owner) {
         switch (type) {
             case COLLABORATIVE:
                 return new CollaborativePlaylist(name, owner);
-            case SMART:
-                return new SmartPlaylist(name, owner);
             case STANDARD:
             default:
                 return new Playlist(name);
@@ -36,88 +41,24 @@ public class PlaylistFactory {
     }
 
     /**
-     * Crée une playlist standard
+     * Creates a standard playlist.
+     *
+     * @param name The name of the playlist
+     * @return A new standard playlist
      */
     public static Playlist createStandardPlaylist(String name) {
         return new Playlist(name);
     }
 
     /**
-     * Crée une playlist collaborative
+     * Creates a collaborative playlist.
+     *
+     * @param name The name of the playlist
+     * @param owner The user who owns the playlist
+     * @return A new collaborative playlist
      */
     public static Playlist createCollaborativePlaylist(String name, User owner) {
         return new CollaborativePlaylist(name, owner);
     }
 
-    /**
-     * Crée une playlist intelligente
-     */
-    public static Playlist createSmartPlaylist(String name, User owner) {
-        return new SmartPlaylist(name, owner);
-    }
-
-    /**
-     * Classes internes pour les différents types de playlists
-     */
-
-    /**
-     * Playlist collaborative
-     */
-    private static class CollaborativePlaylist extends Playlist {
-        private User owner;
-        private List<User> collaborators = new ArrayList<>();
-
-        public CollaborativePlaylist(String name, User owner) {
-            super(name);
-            this.owner = owner;
-        }
-
-        public void addCollaborator(User user) {
-            if (user != null && !collaborators.contains(user)) {
-                collaborators.add(user);
-            }
-        }
-
-        public void removeCollaborator(User user) {
-            collaborators.remove(user);
-        }
-
-        public List<User> getCollaborators() {
-            return new ArrayList<>(collaborators);
-        }
-
-        public User getOwner() {
-            return owner;
-        }
-    }
-
-    /**
-     * Playlist intelligente avec filtres automatiques
-     */
-    private static class SmartPlaylist extends Playlist {
-        private User owner;
-        private String filterGenre;
-        private String filterArtist;
-
-        public SmartPlaylist(String name, User owner) {
-            super(name);
-            this.owner = owner;
-        }
-
-        public void setFilterGenre(String genre) {
-            this.filterGenre = genre;
-            updateSongs();
-        }
-
-        public void setFilterArtist(String artist) {
-            this.filterArtist = artist;
-            updateSongs();
-        }
-
-        private void updateSongs() {
-            // Actualise le contenu de la playlist en fonction des filtres
-            // Cette méthode serait appelée à chaque changement de filtre
-            // ou à chaque mise à jour de la bibliothèque musicale
-        }
-    }
 }

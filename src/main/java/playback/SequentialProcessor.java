@@ -1,21 +1,34 @@
 package playback;
 
 import server.music.DoublyLinkedPlaylist;
-import server.music.Song;
 
 /**
- * Implémentation pour trier par titre et jouer séquentiellement
+ * Implementation for sequential playback.
+ * <p>
+ * This processor doesn't modify the playlist order, playing songs
+ * in their original sequence.
+ * </p>
  */
 public class SequentialProcessor extends PlaylistProcessor {
 
+    /**
+     * No sorting needed for sequential playback - keeps the original order.
+     *
+     * @param playlist The playlist to process
+     */
     @Override
     protected void sortSongs(DoublyLinkedPlaylist playlist) {
-        // Pas de tri, garde l'ordre original
-        System.out.println("⏭️ Mode séquentiel : lecture dans l'ordre de la playlist");
+        // No sorting, keep original order
+        System.out.println("⏭️ Sequential mode: playing in playlist order");
     }
 
+    /**
+     * No filters applied in sequential mode.
+     *
+     * @param playlist The playlist to process
+     */
     @Override
     protected void applyFilters(DoublyLinkedPlaylist playlist) {
-        // Pas de filtre en mode séquentiel
+        // No filters in sequential mode
     }
 }

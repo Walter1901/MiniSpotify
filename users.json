@@ -124,20 +124,20 @@
         "type": "standard",
         "songs": [
           {
-            "title": "Ciel",
-            "artist": "GIMS",
-            "album": "Rap",
-            "genre": "Hip-Hop",
-            "duration": 0,
-            "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\GIMS - Ciel (Official Lyrics Video).mp3"
-          },
-          {
             "title": "NINAO",
             "artist": "GIMS",
             "album": "Rap",
             "genre": "Hip-Hop",
             "duration": 0,
             "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\GIMS  - NINAO (Official Lyrics Vidéo).mp3"
+          },
+          {
+            "title": "Ciel",
+            "artist": "GIMS",
+            "album": "Rap",
+            "genre": "Hip-Hop",
+            "duration": 0,
+            "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\GIMS - Ciel (Official Lyrics Video).mp3"
           },
           {
             "title": "Mussulo",

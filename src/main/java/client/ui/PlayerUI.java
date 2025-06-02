@@ -320,11 +320,21 @@ public class PlayerUI {
                 case "exit":
                     // Important: Stop playback before exiting
                     if (isPlaying || isPaused) {
+                        // First stop the audio player completely
                         audioPlayer.stop();
+                        isPlaying = false;
+                        isPaused = false;
+                        pausePosition = 0;
+                        currentSongTitle = null;
+
+                        // Then notify server
                         out.println("PLAYER_STOP");
+
+                        // Use a local variable inside the try block
                         try {
-                            String exitStopResponse = in.readLine();
-                            System.out.println("Stop response: " + exitStopResponse);
+                            // Read response but don't store in a variable that's used outside the try block
+                            stopResponse = in.readLine();
+                            System.out.println("Stop response: " + stopResponse);
                         } catch (Exception e) {
                             System.err.println("Error reading stop response: " + e.getMessage());
                             // Continue despite error
@@ -335,6 +345,7 @@ public class PlayerUI {
                     out.println("PLAYER_EXIT");
 
                     try {
+                        // Same approach here - keep the variable inside the try block
                         String exitResponse = in.readLine();
                         System.out.println("Exit player response: " + exitResponse);
                     } catch (Exception e) {
