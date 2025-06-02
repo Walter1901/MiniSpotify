@@ -3,7 +3,6 @@ package persistence;
 import com.google.gson.*;
 import server.music.Playlist;
 import server.music.PlaylistAdapter;
-import server.music.Song;
 import server.music.CollaborativePlaylist;
 import users.User;
 import users.FreeUser;
@@ -13,81 +12,83 @@ import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
- * Manages user persistence using JSON files
+ * Manager for user data persistence using JSON format.
+ * Implements data access layer with file-based storage.
+ *
+ * Follows SOLID principles:
+ * - SRP: Single responsibility for user data persistence
+ * - DIP: Provides abstraction for data storage (could be extended to database)
  */
 public class UserPersistenceManager {
 
     private static final String USERS_FILE = "users.json";
 
+    // Temporary storage for followed users during deserialization
+    private static Map<User, List<String>> followedUsersMap = new HashMap<>();
+
     /**
-     * Load all users from the JSON file
+     * Load all users from JSON file
+     * Handles file creation, validation, and error recovery
+     * @return List of loaded users (empty list if no users or errors)
      */
     public static List<User> loadUsers() {
         List<User> users = new ArrayList<>();
         File file = new File(USERS_FILE);
 
         try {
-            // If file doesn't exist, create it with an empty array
+            // Create empty file if it doesn't exist
             if (!file.exists()) {
-                System.out.println("Users file does not exist. Creating new file: " + USERS_FILE);
                 createEmptyUsersFile();
                 return users;
             }
 
             // Check if file is empty
             if (file.length() == 0) {
-                System.out.println("Users file is empty. Initializing with empty array.");
                 createEmptyUsersFile();
                 return users;
             }
 
             try (Reader reader = new FileReader(USERS_FILE)) {
-                // Try to read file as JsonElement for validation
+                // Parse and validate JSON structure
                 JsonElement rootElement = JsonParser.parseReader(reader);
 
-                // Check if root element is null
-                if (rootElement == null) {
-                    System.out.println("Invalid JSON file. Reinitializing with empty array.");
-                    createEmptyUsersFile();
-                    return users;
-                }
-
-                // Check if element is an array
-                if (!rootElement.isJsonArray()) {
-                    System.out.println("JSON file does not contain an array. Reinitializing with empty array.");
+                if (rootElement == null || !rootElement.isJsonArray()) {
                     createEmptyUsersFile();
                     return users;
                 }
 
                 JsonArray jsonArray = rootElement.getAsJsonArray();
 
-                // Create adapter for playlists
+                // Configure Gson with custom adapters
                 GsonBuilder gsonBuilder = new GsonBuilder();
                 gsonBuilder.registerTypeAdapter(Playlist.class, new PlaylistAdapter());
                 Gson gson = gsonBuilder.create();
 
+                // Process each user in the JSON array
                 for (JsonElement element : jsonArray) {
                     try {
                         JsonObject obj = element.getAsJsonObject();
-                        if (obj.get("username") == null || obj.get("passwordHash") == null || obj.get("accountType") == null) {
-                            System.err.println("Incomplete or corrupt user entry in users.json, skipped.");
-                            continue;
+
+                        // Validate required fields
+                        if (obj.get("username") == null || obj.get("passwordHash") == null ||
+                                obj.get("accountType") == null) {
+                            continue; // Skip invalid entries
                         }
 
                         String username = obj.get("username").getAsString();
                         String passwordHash = obj.get("passwordHash").getAsString();
                         String accountType = obj.get("accountType").getAsString();
 
+                        // Create appropriate user type using Factory pattern
                         User user;
                         if ("free".equalsIgnoreCase(accountType)) {
                             user = new FreeUser(username, passwordHash);
                         } else if ("premium".equalsIgnoreCase(accountType)) {
                             user = new PremiumUser(username, passwordHash);
                         } else {
-                            continue; // Unknown account type
+                            continue; // Skip unknown account types
                         }
 
                         // Load playlists if present
@@ -98,20 +99,18 @@ public class UserPersistenceManager {
                                     Playlist playlist = gson.fromJson(playlistElement, Playlist.class);
                                     user.addPlaylist(playlist);
                                 } catch (Exception e) {
-                                    System.err.println("Error loading a playlist: " + e.getMessage());
+                                    System.err.println("Error loading playlist: " + e.getMessage());
                                 }
                             }
                         }
 
-                        // Load followed users if present
+                        // Load followed users (store for later resolution)
                         if (obj.has("followedUsers") && obj.get("followedUsers").isJsonArray()) {
                             JsonArray followedArray = obj.getAsJsonArray("followedUsers");
-                            // Store usernames to resolve after all users are loaded
                             List<String> followedUsernames = new ArrayList<>();
                             for (JsonElement followedElement : followedArray) {
                                 followedUsernames.add(followedElement.getAsString());
                             }
-                            // Store for later resolution
                             followedUsersMap.put(user, followedUsernames);
                         }
 
@@ -121,70 +120,74 @@ public class UserPersistenceManager {
                         }
 
                         users.add(user);
+
                     } catch (Exception e) {
                         System.err.println("Error processing user entry: " + e.getMessage());
-                        e.printStackTrace();
                     }
                 }
 
-                // Resolve followed users
-                for (Map.Entry<User, List<String>> entry : followedUsersMap.entrySet()) {
-                    User follower = entry.getKey();
-                    for (String username : entry.getValue()) {
-                        for (User potentialFollowed : users) {
-                            if (potentialFollowed.getUsername().equals(username)) {
-                                follower.follow(potentialFollowed);
-                                break;
-                            }
-                        }
-                    }
-                }
-                // Clear map after resolving
-                followedUsersMap.clear();
+                // Resolve followed user references
+                resolveFollowedUsers(users);
+
             }
         } catch (IOException | JsonSyntaxException e) {
             System.err.println("Error loading users: " + e.getMessage());
-            // Try to recover by creating a new empty file
             createEmptyUsersFile();
         }
 
         return users;
     }
 
-    // Temporary storage for followed users (needed for resolution after all users are loaded)
-    private static Map<User, List<String>> followedUsersMap = new HashMap<>();
+    /**
+     * Resolve followed user references after all users are loaded
+     * @param users List of all loaded users
+     */
+    private static void resolveFollowedUsers(List<User> users) {
+        for (Map.Entry<User, List<String>> entry : followedUsersMap.entrySet()) {
+            User follower = entry.getKey();
+            for (String username : entry.getValue()) {
+                for (User potentialFollowed : users) {
+                    if (potentialFollowed.getUsername().equals(username)) {
+                        follower.follow(potentialFollowed);
+                        break;
+                    }
+                }
+            }
+        }
+        followedUsersMap.clear(); // Clean up temporary storage
+    }
 
     /**
-     * Create an empty users.json file with an empty JSON array
+     * Create an empty users.json file with valid JSON array
      */
     private static void createEmptyUsersFile() {
         try (Writer writer = new FileWriter(USERS_FILE)) {
             writer.write("[]");
-            System.out.println("Created empty users file: " + USERS_FILE);
         } catch (IOException e) {
             System.err.println("Failed to create empty users file: " + e.getMessage());
         }
     }
 
     /**
-     * Save all users to the JSON file
+     * Save all users to JSON file with atomic write operation
+     * @param users List of users to save
      */
     public static void saveUsers(List<User> users) {
-        // Create a temporary file for writing
+        // Use temporary file for atomic write operation
         File tempFile = new File(USERS_FILE + ".tmp");
         File originalFile = new File(USERS_FILE);
 
         try {
-            // First write to temporary file
+            // Write to temporary file first
             try (Writer writer = new FileWriter(tempFile)) {
-                // Important: Register the PlaylistAdapter with the type hierarchy adapter
+                // Configure Gson with custom adapters
                 GsonBuilder gsonBuilder = new GsonBuilder().setPrettyPrinting();
                 gsonBuilder.registerTypeAdapter(Playlist.class, new PlaylistAdapter());
-                // Also register the specific subclass
                 gsonBuilder.registerTypeAdapter(CollaborativePlaylist.class, new PlaylistAdapter());
                 Gson gson = gsonBuilder.create();
 
                 JsonArray userArray = new JsonArray();
+
                 for (User user : users) {
                     JsonObject obj = new JsonObject();
                     obj.addProperty("username", user.getUsername());
@@ -196,14 +199,10 @@ public class UserPersistenceManager {
                     if (!user.getPlaylists().isEmpty()) {
                         JsonArray playlistsArray = new JsonArray();
                         for (Playlist playlist : user.getPlaylists()) {
-                            // Skip special system playlists
+                            // Skip invalid playlists
                             if ("LOGIN_SUCCESS".equals(playlist.getName())) {
                                 continue;
                             }
-
-                            // Print debug info
-                            System.out.println("Serializing playlist: " + playlist.getName() +
-                                    " (type: " + (playlist instanceof CollaborativePlaylist ? "collaborative" : "standard") + ")");
 
                             JsonElement playlistElement = gson.toJsonTree(playlist);
                             playlistsArray.add(playlistElement);
@@ -222,41 +221,39 @@ public class UserPersistenceManager {
 
                     userArray.add(obj);
                 }
+
                 gson.toJson(userArray, writer);
-                writer.flush(); // Ensure all data is written
+                writer.flush();
             }
 
-            // Check that temp file exists and has correct size
+            // Atomic replacement - only if temp file was written successfully
             if (tempFile.exists() && tempFile.length() > 0) {
-                // Make backup of original file (if needed)
+                // Create backup of original file
                 File backupFile = new File(USERS_FILE + ".bak");
                 if (originalFile.exists()) {
                     Files.copy(originalFile.toPath(), backupFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
                 }
 
-                // Replace original file with temp file
+                // Replace original with temp file
                 Files.move(tempFile.toPath(), originalFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-
-                // Delete backup after successful replacement (optional)
-                // backupFile.delete();
             } else {
                 throw new IOException("Failed to write temporary file or file is empty");
             }
+
         } catch (IOException e) {
             System.err.println("Error saving users: " + e.getMessage());
 
-            // In case of error, restore backup if it exists
+            // Restore backup if available
             File backupFile = new File(USERS_FILE + ".bak");
             if (backupFile.exists() && originalFile.exists() && originalFile.length() == 0) {
                 try {
                     Files.copy(backupFile.toPath(), originalFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                    System.out.println("Restored backup file after error.");
                 } catch (IOException restoreError) {
                     System.err.println("Failed to restore backup: " + restoreError.getMessage());
                 }
             }
 
-            // Delete temp file if it still exists
+            // Clean up temp file
             if (tempFile.exists()) {
                 tempFile.delete();
             }
@@ -264,7 +261,8 @@ public class UserPersistenceManager {
     }
 
     /**
-     * Add one user and save immediately
+     * Add a single user and save immediately
+     * @param user User to add
      */
     public static void addUser(User user) {
         List<User> users = loadUsers();
@@ -274,6 +272,8 @@ public class UserPersistenceManager {
 
     /**
      * Check if a username already exists
+     * @param username Username to check
+     * @return true if user exists, false otherwise
      */
     public static boolean doesUserExist(String username) {
         List<User> users = loadUsers();
@@ -281,7 +281,10 @@ public class UserPersistenceManager {
     }
 
     /**
-     * Authenticate user by username and hashed password
+     * Authenticate user by username and password
+     * @param username Username to authenticate
+     * @param inputPasswordHash Hashed password to verify
+     * @return true if authentication successful, false otherwise
      */
     public static boolean authenticate(String username, String inputPasswordHash) {
         return loadUsers().stream()
@@ -290,7 +293,8 @@ public class UserPersistenceManager {
     }
 
     /**
-     * Update a specific user
+     * Update an existing user's data
+     * @param updatedUser User with updated information
      */
     public static void updateUser(User updatedUser) {
         List<User> users = loadUsers();
@@ -302,6 +306,23 @@ public class UserPersistenceManager {
         }
         saveUsers(users);
     }
+
+    /**
+     * Get a user by username
+     * @param username Username to search for
+     * @return User if found, null otherwise
+     */
+    public static User getUserByUsername(String username) {
+        return loadUsers().stream()
+                .filter(u -> u.getUsername().equals(username))
+                .findFirst()
+                .orElse(null);
+    }
+
+    /**
+     * Clean up invalid playlists for a user
+     * @param user User to clean up
+     */
     public static void cleanupInvalidPlaylists(User user) {
         if (user != null) {
             List<Playlist> validPlaylists = new ArrayList<>();
@@ -315,18 +336,7 @@ public class UserPersistenceManager {
             if (validPlaylists.size() < user.getPlaylists().size()) {
                 user.setPlaylists(validPlaylists);
                 updateUser(user);
-                System.out.println("Removed invalid playlists for user: " + user.getUsername());
             }
         }
-    }
-
-    /**
-     * Get a user by username
-     */
-    public static User getUserByUsername(String username) {
-        return loadUsers().stream()
-                .filter(u -> u.getUsername().equals(username))
-                .findFirst()
-                .orElse(null);
     }
 }

@@ -3,36 +3,52 @@ package playback;
 import server.music.DoublyLinkedPlaylist;
 
 /**
- * Interface unique pour tous les états de lecture
+ * State interface for playback states.
+ * Implements State pattern to allow PlaybackService to change behavior
+ * when its internal state changes.
+ *
+ * Follows Interface Segregation Principle (ISP) by providing
+ * only methods relevant to playback state management.
  */
 public interface PlaybackState {
     /**
-     * Démarre ou reprend la lecture
+     * Start or resume playback
+     * @param service PlaybackService context
+     * @param playlist Current playlist
      */
     void play(PlaybackService service, DoublyLinkedPlaylist playlist);
 
     /**
-     * Met en pause la lecture
+     * Pause playback
+     * @param service PlaybackService context
+     * @param playlist Current playlist
      */
     void pause(PlaybackService service, DoublyLinkedPlaylist playlist);
 
     /**
-     * Passe à la chanson suivante selon le mode de lecture
+     * Move to next song according to current playback mode
+     * @param service PlaybackService context
+     * @param playlist Current playlist
      */
     void next(PlaybackService service, DoublyLinkedPlaylist playlist);
 
     /**
-     * Passe à la chanson précédente selon le mode de lecture
+     * Move to previous song according to current playback mode
+     * @param service PlaybackService context
+     * @param playlist Current playlist
      */
     void previous(PlaybackService service, DoublyLinkedPlaylist playlist);
 
     /**
-     * Arrête la lecture
+     * Stop playback completely
+     * @param service PlaybackService context
+     * @param playlist Current playlist
      */
     void stop(PlaybackService service, DoublyLinkedPlaylist playlist);
 
     /**
-     * Retourne le nom de l'état pour affichage
+     * Get the name of this state for display purposes
+     * @return State name as string
      */
     String getName();
 }

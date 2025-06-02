@@ -10,13 +10,13 @@ public class RepeatPlayState implements PlaybackMode {
         if (playlist == null || playlist.isEmpty()) return;
 
         Song currentSong = playlist.getCurrentSong();
-        System.out.println("🔁 Répétition : " +
-                (currentSong != null ? currentSong.getTitle() : "Aucune chanson"));
+        System.out.println("🔁 Repeating: " +
+                (currentSong != null ? currentSong.getTitle() : "No song"));
     }
 
     @Override
     public void previous(PlaybackService service, DoublyLinkedPlaylist playlist) {
-        // En mode répétition, previous fait la même chose que next
+        // In repeat mode, previous does the same as next
         next(service, playlist);
     }
 

@@ -5,17 +5,19 @@ import java.net.Socket;
 import client.ui.UserInterface;
 
 /**
- * Point d'entrée de l'application client
+ * Main entry point for the client application.
+ * Implements Singleton pattern to ensure only one client instance.
+ * Handles connection to server and UI initialization.
  */
 public class ClientApp {
-    // Constantes de configuration
+    // Server connection configuration
     public static final String SERVER_ADDRESS = "localhost";
     public static final int SERVER_PORT = 12345;
 
-    // Instance unique (Singleton)
+    // Singleton instance (volatile for thread safety)
     private static volatile ClientApp instance;
 
-    // État du client
+    // Client state and network components
     private Socket socket;
     private BufferedReader in;
     private PrintWriter out;
@@ -23,14 +25,15 @@ public class ClientApp {
     private boolean isConnected;
 
     /**
-     * Constructeur privé (Singleton)
+     * Private constructor for Singleton pattern
      */
     private ClientApp() {
         this.isConnected = false;
     }
 
     /**
-     * Getter pour l'instance (Double-Checked Locking)
+     * Get Singleton instance using Double-Checked Locking pattern
+     * @return Single instance of ClientApp
      */
     public static ClientApp getInstance() {
         if (instance == null) {
@@ -44,30 +47,29 @@ public class ClientApp {
     }
 
     /**
-     * Connecte le client au serveur
+     * Establish connection to the MiniSpotify server
+     * @return true if connection successful, false otherwise
      */
     public boolean connect() {
         try {
-            System.out.println("Connecting to server at " + SERVER_ADDRESS + ":" + SERVER_PORT + "...");
             socket = new Socket(SERVER_ADDRESS, SERVER_PORT);
             in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             out = new PrintWriter(socket.getOutputStream(), true);
             isConnected = true;
 
-            // Welcome message from server
+            // Read welcome message from server
             String welcomeMessage = in.readLine();
             System.out.println(welcomeMessage);
 
             return true;
         } catch (IOException e) {
             System.err.println("Error connecting to server: " + e.getMessage());
-            e.printStackTrace();
             return false;
         }
     }
 
     /**
-     * Déconnecte le client du serveur
+     * Disconnect from server and clean up resources
      */
     public void disconnect() {
         isConnected = false;
@@ -75,14 +77,13 @@ public class ClientApp {
             if (in != null) in.close();
             if (out != null) out.close();
             if (socket != null && !socket.isClosed()) socket.close();
-            System.out.println("Disconnected from server.");
         } catch (IOException e) {
             System.err.println("Error disconnecting: " + e.getMessage());
         }
     }
 
     /**
-     * Démarre l'interface utilisateur
+     * Initialize and start the user interface
      */
     public void startUI() {
         if (!isConnected) {
@@ -95,7 +96,7 @@ public class ClientApp {
     }
 
     /**
-     * Méthode principale
+     * Application entry point
      */
     public static void main(String[] args) {
         ClientApp client = ClientApp.getInstance();
@@ -106,22 +107,9 @@ public class ClientApp {
         }
     }
 
-    /**
-     * Getters pour les flux et la socket
-     */
-    public BufferedReader getIn() {
-        return in;
-    }
-
-    public PrintWriter getOut() {
-        return out;
-    }
-
-    public Socket getSocket() {
-        return socket;
-    }
-
-    public boolean isConnected() {
-        return isConnected;
-    }
+    // Getters for network components
+    public BufferedReader getIn() { return in; }
+    public PrintWriter getOut() { return out; }
+    public Socket getSocket() { return socket; }
+    public boolean isConnected() { return isConnected; }
 }

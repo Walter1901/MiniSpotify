@@ -9,8 +9,8 @@ public class SequentialPlayState implements PlaybackMode {
         if (playlist == null || playlist.isEmpty()) return;
 
         playlist.next();
-        System.out.println("⏭️ Chanson suivante (mode séquentiel) : " +
-                (playlist.getCurrentSong() != null ? playlist.getCurrentSong().getTitle() : "Aucune chanson"));
+        System.out.println("⏭️ Next song (sequential mode): " +
+                (playlist.getCurrentSong() != null ? playlist.getCurrentSong().getTitle() : "No song"));
     }
 
     @Override
@@ -18,8 +18,8 @@ public class SequentialPlayState implements PlaybackMode {
         if (playlist == null || playlist.isEmpty()) return;
 
         playlist.previous();
-        System.out.println("⏮️ Chanson précédente (mode séquentiel) : " +
-                (playlist.getCurrentSong() != null ? playlist.getCurrentSong().getTitle() : "Aucune chanson"));
+        System.out.println("⏮️ Previous song (sequential mode): " +
+                (playlist.getCurrentSong() != null ? playlist.getCurrentSong().getTitle() : "No song"));
     }
 
     @Override

@@ -9,13 +9,13 @@ public class ShufflePlayState implements PlaybackMode {
         if (playlist == null || playlist.isEmpty()) return;
 
         playlist.shuffle();
-        System.out.println("🔀 Chanson aléatoire : " +
-                (playlist.getCurrentSong() != null ? playlist.getCurrentSong().getTitle() : "Aucune chanson"));
+        System.out.println("🔀 Random song: " +
+                (playlist.getCurrentSong() != null ? playlist.getCurrentSong().getTitle() : "No song"));
     }
 
     @Override
     public void previous(PlaybackService service, DoublyLinkedPlaylist playlist) {
-        // En mode shuffle, previous fait la même chose que next - choix aléatoire
+        // In shuffle mode, previous does the same as next - random choice
         next(service, playlist);
     }
 

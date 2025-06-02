@@ -17,7 +17,7 @@ public class AudioPlayer {
     private long pausePosition;
     private long songTotalLength;
     private FileInputStream fileInputStream;
-    private long startTime; // To track elapsed time for better pause position calculation
+    private long startTime;
 
     /**
      * Plays an audio file
@@ -28,9 +28,9 @@ public class AudioPlayer {
             // Stop current playback if necessary
             stop();
 
-            // Check if the path is not a path formatted by error
+            // Check if the path contains invalid format
             if (filePath != null && filePath.contains("|")) {
-                System.out.println("⚠️ Incorrect path format detected: " + filePath);
+                System.out.println("⚠️ Invalid path format detected: " + filePath);
                 System.out.println("⚠️ Cannot play file with this format");
                 isPlaying = false;
                 return;
@@ -110,6 +110,7 @@ public class AudioPlayer {
         }
         return 0;
     }
+
     /**
      * Resumes playback from pause point
      */

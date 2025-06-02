@@ -5,24 +5,25 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Bibliothèque musicale centralisée
- * Implémentation du pattern Singleton
+ * Centralized music library implementing Singleton pattern.
+ * Manages all songs available in the system.
+ * Follows Single Responsibility Principle - only handles song storage and retrieval.
  */
 public class MusicLibrary {
-    // Instance unique (volatile pour visibilité entre threads)
+    // Singleton instance (volatile for thread safety)
     private static volatile MusicLibrary instance = null;
 
-    // Liste des chansons disponibles
+    // Song storage
     private List<Song> songs = new ArrayList<>();
 
     /**
-     * Constructeur privé (Singleton)
+     * Private constructor for Singleton pattern
      */
     private MusicLibrary() {}
 
     /**
-     * Getter pour l'instance Singleton avec Double-Checked Locking
-     * pour assurer la thread-safety
+     * Get Singleton instance using Double-Checked Locking
+     * @return Single MusicLibrary instance
      */
     public static MusicLibrary getInstance() {
         if (instance == null) {
@@ -36,21 +37,9 @@ public class MusicLibrary {
     }
 
     /**
-     * Initialise la bibliothèque avec des chansons d'exemple
-     */
-    public void initializeWithSampleSongs() {
-        // Ajouter des chansons d'exemple à la bibliothèque
-        addSong(new Song("Mussulo", "Dj Aka-m e Dj Malvado Feat Dody", "Afro House", "Electronic", 416));
-        addSong(new Song("Ciel", "GIMS", "Rap", "Hip-Hop", 306));
-        addSong(new Song("NINAO", "GIMS", "Rap", "Hip-Hop", 247));
-        addSong(new Song("Mood", "Keblack", "Rap", "Hip-Hop", 253));
-        addSong(new Song("Melrose Place", "Keblack Ft. Guy2Bezbar", "Rap", "Hip-Hop", 234));
-
-        System.out.println("Sample songs added to library: " + getAllSongs().size() + " songs");
-    }
-
-    /**
-     * Ajoute une chanson à la bibliothèque
+     * Add a song to the library
+     * Prevents duplicate songs
+     * @param song Song to add
      */
     public void addSong(Song song) {
         if (song != null && !songs.contains(song)) {
@@ -59,7 +48,9 @@ public class MusicLibrary {
     }
 
     /**
-     * Recherche des chansons par titre (insensible à la casse)
+     * Search songs by title (case insensitive partial match)
+     * @param title Title to search for
+     * @return List of matching songs
      */
     public List<Song> searchByTitle(String title) {
         if (title == null || title.isEmpty()) {
@@ -72,20 +63,9 @@ public class MusicLibrary {
     }
 
     /**
-     * Filtre les chansons par genre
-     */
-    public List<Song> filterByGenre(String genre) {
-        if (genre == null || genre.isEmpty()) {
-            return new ArrayList<>();
-        }
-
-        return songs.stream()
-                .filter(s -> s.getGenre().equalsIgnoreCase(genre))
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Filtre les chansons par artiste
+     * Filter songs by artist (case insensitive partial match)
+     * @param artist Artist name to filter by
+     * @return List of songs by the artist
      */
     public List<Song> filterByArtist(String artist) {
         if (artist == null || artist.isEmpty()) {
@@ -98,31 +78,18 @@ public class MusicLibrary {
     }
 
     /**
-     * Récupère toutes les chansons disponibles
+     * Get all songs in the library
+     * @return Defensive copy of all songs
      */
     public List<Song> getAllSongs() {
-        // Retourne une copie défensive pour éviter les modifications externes
         return new ArrayList<>(songs);
     }
 
     /**
-     * Récupère une chanson par son titre exact
+     * Get total number of songs
+     * @return Number of songs in library
      */
-    public Song getSongByExactTitle(String title) {
-        if (title == null || title.isEmpty()) {
-            return null;
-        }
-
-        return songs.stream()
-                .filter(s -> s.getTitle().equalsIgnoreCase(title))
-                .findFirst()
-                .orElse(null);
-    }
-
-    /**
-     * Vide la bibliothèque (utile pour les tests)
-     */
-    public void clear() {
-        songs.clear();
+    public int size() {
+        return songs.size();
     }
 }

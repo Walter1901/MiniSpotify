@@ -4,27 +4,32 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Invocateur de commandes pour le pattern Command
+ * Command Invoker for Command pattern implementation.
+ * Manages registration and execution of commands.
+ * Follows Single Responsibility Principle (SRP).
  */
 public class CommandInvoker {
     private Map<String, Command> commands;
 
     /**
-     * Constructeur
+     * Initialize command registry
      */
     public CommandInvoker() {
         commands = new HashMap<>();
     }
 
     /**
-     * Enregistre une commande
+     * Register a command with a name
+     * @param commandName Name to associate with command
+     * @param command Command implementation to register
      */
     public void register(String commandName, Command command) {
         commands.put(commandName.toLowerCase(), command);
     }
 
     /**
-     * Exécute une commande
+     * Execute a registered command by name
+     * @param commandName Name of command to execute
      */
     public void execute(String commandName) {
         Command command = commands.get(commandName.toLowerCase());
@@ -36,14 +41,16 @@ public class CommandInvoker {
     }
 
     /**
-     * Vérifie si une commande existe
+     * Check if a command is registered
+     * @param commandName Name to check
+     * @return true if command exists, false otherwise
      */
     public boolean hasCommand(String commandName) {
         return commands.containsKey(commandName.toLowerCase());
     }
 
     /**
-     * Affiche toutes les commandes disponibles
+     * Display all available commands
      */
     public void listCommands() {
         System.out.println("Available commands:");

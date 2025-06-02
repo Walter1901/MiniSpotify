@@ -3,21 +3,31 @@ package playback;
 import server.music.DoublyLinkedPlaylist;
 
 /**
- * Interface pour les différents modes de lecture
+ * Strategy interface for different playback modes.
+ * Implements Strategy pattern to define family of algorithms
+ * for playlist navigation.
+ *
+ * Follows Interface Segregation Principle (ISP) by providing
+ * only methods relevant to playback mode behavior.
  */
 public interface PlaybackMode {
     /**
-     * Passe à la chanson suivante selon le mode
+     * Move to next song according to this mode's strategy
+     * @param service PlaybackService context
+     * @param playlist Current playlist
      */
     void next(PlaybackService service, DoublyLinkedPlaylist playlist);
 
     /**
-     * Passe à la chanson précédente selon le mode
+     * Move to previous song according to this mode's strategy
+     * @param service PlaybackService context
+     * @param playlist Current playlist
      */
     void previous(PlaybackService service, DoublyLinkedPlaylist playlist);
 
     /**
-     * Récupère le nom du mode pour affichage
+     * Get the name of this playback mode for display
+     * @return Mode name as string
      */
     String getName();
 }
