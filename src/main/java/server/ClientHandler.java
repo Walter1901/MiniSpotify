@@ -246,7 +246,7 @@ public class ClientHandler implements Runnable {
     }
 
     /**
-     * Creates a command for creating a collaborative playlist with robust error handling
+     * Creates a command for creating a collaborative playlist - CORRECTED VERSION
      */
     private ServerCommand createCollabPlaylistCommand(String args) {
         return out -> {
@@ -277,11 +277,11 @@ public class ClientHandler implements Runnable {
 
                     if (!exists) {
                         try {
-                            // Explicitly create a CollaborativePlaylist - not a regular Playlist
+                            // CORRECTION: Créer explicitement une CollaborativePlaylist
                             CollaborativePlaylist playlist = new CollaborativePlaylist(playlistName, loggedInUser);
-                            System.out.println("DEBUG: Created CollaborativePlaylist object: " + playlist.getClass().getName());
+                            System.out.println("DEBUG: Created CollaborativePlaylist object: " + playlist.getClass().getSimpleName());
 
-                            // Verify it's the correct class
+                            // Vérifier que c'est bien le bon type
                             if (!(playlist instanceof CollaborativePlaylist)) {
                                 throw new RuntimeException("Failed to create a CollaborativePlaylist instance");
                             }
@@ -308,18 +308,28 @@ public class ClientHandler implements Runnable {
                                 }
                             }
 
-                            // Debug again to verify collaborators were added
-                            System.out.println("DEBUG: Playlist is collaborative: " + (playlist instanceof CollaborativePlaylist));
+                            // IMPORTANT: Vérifier le type avant l'ajout
+                            System.out.println("DEBUG: Final playlist type check: " + playlist.getClass().getSimpleName());
+                            System.out.println("DEBUG: Is CollaborativePlaylist: " + (playlist instanceof CollaborativePlaylist));
+                            System.out.println("DEBUG: Owner: " + playlist.getOwnerUsername());
                             System.out.println("DEBUG: Collaborators: " + String.join(", ", playlist.getCollaboratorUsernames()));
 
                             // Add playlist to user
                             loggedInUser.addPlaylist(playlist);
 
+                            // CORRECTION: Vérifier après ajout
+                            System.out.println("DEBUG: Playlist added to user. User now has " + loggedInUser.getPlaylists().size() + " playlists");
+                            for (Playlist p : loggedInUser.getPlaylists()) {
+                                System.out.println("DEBUG: - " + p.getName() + " (type: " + p.getClass().getSimpleName() + ")");
+                            }
+
                             // Save user state
                             UserPersistenceManager.updateUser(loggedInUser);
+                            System.out.println("DEBUG: User saved to persistence");
 
                             out.println("COLLAB_PLAYLIST_CREATED");
                             return true;
+
                         } catch (Exception e) {
                             System.err.println("Error creating collaborative playlist: " + e.getMessage());
                             e.printStackTrace();
@@ -658,7 +668,7 @@ public class ClientHandler implements Runnable {
     }
 
     /**
-     * Add song to playlist command
+     * Add song to playlist command - CORRECTED VERSION
      */
     private ServerCommand addSongToPlaylistCommand(String args) {
         return out -> {
@@ -677,6 +687,8 @@ public class ClientHandler implements Runnable {
                 String playlistName = parts[0].trim();
                 String songTitle = parts[1].trim();
 
+                System.out.println("DEBUG: Adding song '" + songTitle + "' to playlist '" + playlistName + "'");
+
                 // Find playlist
                 Playlist found = null;
                 for (Playlist p : loggedInUser.getPlaylists()) {
@@ -687,27 +699,57 @@ public class ClientHandler implements Runnable {
                 }
 
                 if (found == null) {
-                    out.println("Playlist not found.");
+                    out.println("ERROR: Playlist not found.");
                     return false;
                 }
 
-                // Find song with all its attributes in the library
+                // Find song with all its attributes in the library - IMPROVED SEARCH
                 Song originalSong = null;
+                System.out.println("DEBUG: Searching for song in library...");
+
+                // First try exact match (case insensitive)
                 for (Song s : MusicLibrary.getInstance().getAllSongs()) {
-                    if (s.getTitle().equals(songTitle)) {
+                    System.out.println("DEBUG: Comparing '" + songTitle + "' with '" + s.getTitle() + "'");
+                    if (s.getTitle().equalsIgnoreCase(songTitle)) {
                         originalSong = s;
+                        System.out.println("DEBUG: Found exact match: " + s.getTitle());
                         break;
                     }
                 }
 
+                // If no exact match, try partial match
                 if (originalSong == null) {
-                    out.println("Song not found.");
+                    System.out.println("DEBUG: No exact match found, trying partial match...");
+                    for (Song s : MusicLibrary.getInstance().getAllSongs()) {
+                        if (s.getTitle().toLowerCase().contains(songTitle.toLowerCase()) ||
+                                songTitle.toLowerCase().contains(s.getTitle().toLowerCase())) {
+                            originalSong = s;
+                            System.out.println("DEBUG: Found partial match: " + s.getTitle());
+                            break;
+                        }
+                    }
+                }
+
+                if (originalSong == null) {
+                    System.out.println("DEBUG: Available songs in library:");
+                    for (Song s : MusicLibrary.getInstance().getAllSongs()) {
+                        System.out.println("DEBUG:   - '" + s.getTitle() + "' by '" + s.getArtist() + "'");
+                    }
+                    out.println("ERROR: Song not found. Available songs listed in server console.");
                     return false;
                 }
 
                 System.out.println("DEBUG: Adding song '" + originalSong.getTitle() +
                         "' with path: " + originalSong.getFilePath() +
                         " to playlist '" + playlistName + "'");
+
+                // Check if song is already in playlist
+                for (Song existingSong : found.getSongs()) {
+                    if (existingSong.getTitle().equalsIgnoreCase(originalSong.getTitle())) {
+                        out.println("INFO: Song is already in the playlist.");
+                        return true;
+                    }
+                }
 
                 // Create a complete copy of the song to add to the playlist
                 Song songCopy = new Song(
@@ -726,8 +768,9 @@ public class ClientHandler implements Runnable {
                 // Update persistence
                 UserPersistenceManager.updateUser(loggedInUser);
 
-                out.println("SUCCESS: Song added to playlist.");
+                out.println("SUCCESS: Song '" + originalSong.getTitle() + "' added to playlist '" + playlistName + "'.");
                 return true;
+
             } catch (Exception e) {
                 System.err.println("Error in addSongToPlaylistCommand: " + e.getMessage());
                 e.printStackTrace();

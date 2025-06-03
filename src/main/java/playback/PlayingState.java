@@ -6,12 +6,11 @@ public class PlayingState implements PlaybackState {
 
     @Override
     public void play(PlaybackService service, DoublyLinkedPlaylist playlist) {
-        System.out.println("Music is already playing.");
+        // Silent - already playing
     }
 
     @Override
     public void pause(PlaybackService service, DoublyLinkedPlaylist playlist) {
-        System.out.println("⏸️ Pausing playback...");
         service.setState(new PausedState());
     }
 
@@ -27,7 +26,6 @@ public class PlayingState implements PlaybackState {
 
     @Override
     public void stop(PlaybackService service, DoublyLinkedPlaylist playlist) {
-        System.out.println("⏹️ Stopping playback...");
         service.setState(new StoppedState());
     }
 

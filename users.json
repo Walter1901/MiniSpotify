@@ -150,9 +150,26 @@
         ]
       },
       {
-        "name": "Salut",
+        "name": "Hello",
         "type": "standard",
-        "songs": []
+        "songs": [
+          {
+            "title": "Mussulo",
+            "artist": "Dj Aka-m e Dj Malvado Feat Dody",
+            "album": "Unknown",
+            "genre": "Unknown",
+            "duration": 0,
+            "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\Dj Aka-m e Dj Malvado Feat Dody - Mussulo.mp3"
+          },
+          {
+            "title": "NINAO",
+            "artist": "GIMS",
+            "album": "Unknown",
+            "genre": "Unknown",
+            "duration": 0,
+            "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\GIMS  - NINAO (Official Lyrics Vidéo).mp3"
+          }
+        ]
       }
     ],
     "followedUsers": [

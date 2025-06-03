@@ -4,7 +4,7 @@ import com.google.gson.*;
 import java.lang.reflect.Type;
 
 /**
- * JSON adapter for playlists that properly handles different playlist types
+ * JSON adapter for playlists that properly handles different playlist types - CORRECTED VERSION
  */
 public class PlaylistAdapter implements JsonSerializer<Playlist>, JsonDeserializer<Playlist> {
 
@@ -15,25 +15,31 @@ public class PlaylistAdapter implements JsonSerializer<Playlist>, JsonDeserializ
         // Serialize common fields
         json.addProperty("name", playlist.getName());
 
-        // Determine playlist type and add type information
+        // CORRECTION: Vérification plus explicite du type
+        System.out.println("DEBUG: Serializing playlist '" + playlist.getName() + "' of type: " + playlist.getClass().getSimpleName());
+
         if (playlist instanceof CollaborativePlaylist) {
             json.addProperty("type", "collaborative");
+            System.out.println("DEBUG: Playlist marked as collaborative");
 
             // Add collaborative playlist specific fields
             CollaborativePlaylist collabPlaylist = (CollaborativePlaylist) playlist;
             String ownerUsername = collabPlaylist.getOwnerUsername();
             if (ownerUsername != null) {
                 json.addProperty("owner", ownerUsername);
+                System.out.println("DEBUG: Added owner: " + ownerUsername);
             }
 
             // Add collaborators
             JsonArray collaboratorsArray = new JsonArray();
             for (String username : collabPlaylist.getCollaboratorUsernames()) {
                 collaboratorsArray.add(username);
+                System.out.println("DEBUG: Added collaborator: " + username);
             }
             json.add("collaborators", collaboratorsArray);
         } else {
             json.addProperty("type", "standard");
+            System.out.println("DEBUG: Playlist marked as standard");
         }
 
         // Serialize the song list
@@ -55,6 +61,7 @@ public class PlaylistAdapter implements JsonSerializer<Playlist>, JsonDeserializ
         }
         json.add("songs", songsArray);
 
+        System.out.println("DEBUG: Serialization complete for playlist: " + playlist.getName());
         return json;
     }
 
@@ -68,11 +75,14 @@ public class PlaylistAdapter implements JsonSerializer<Playlist>, JsonDeserializ
         String type = obj.has("type") ? obj.get("type").getAsString() : "standard";
         Playlist playlist;
 
+        System.out.println("DEBUG: Deserializing playlist '" + name + "' of type: " + type);
+
         if ("collaborative".equals(type)) {
             // Create a collaborative playlist
             String ownerUsername = obj.has("owner") ? obj.get("owner").getAsString() : null;
+            System.out.println("DEBUG: Creating CollaborativePlaylist with owner: " + ownerUsername);
 
-            // Create the collaborative playlist with just the owner's username
+            // Create the collaborative playlist with owner's username
             CollaborativePlaylist collabPlaylist = new CollaborativePlaylist(name, ownerUsername);
 
             // Add collaborators if present
@@ -80,15 +90,18 @@ public class PlaylistAdapter implements JsonSerializer<Playlist>, JsonDeserializ
                 JsonArray collaboratorsArray = obj.get("collaborators").getAsJsonArray();
                 for (JsonElement collaboratorElement : collaboratorsArray) {
                     String collaboratorUsername = collaboratorElement.getAsString();
-                    // Just store the username - we'll resolve it at runtime
+                    // Directly add to the collaborators list (since we're deserializing)
                     collabPlaylist.getCollaboratorUsernames().add(collaboratorUsername);
+                    System.out.println("DEBUG: Added collaborator to deserialized playlist: " + collaboratorUsername);
                 }
             }
 
             playlist = collabPlaylist;
+            System.out.println("DEBUG: Created CollaborativePlaylist instance");
         } else {
             // Create a standard playlist
             playlist = new Playlist(name);
+            System.out.println("DEBUG: Created standard Playlist instance");
         }
 
         // Deserialize songs
@@ -113,6 +126,7 @@ public class PlaylistAdapter implements JsonSerializer<Playlist>, JsonDeserializ
             }
         }
 
+        System.out.println("DEBUG: Deserialization complete for playlist: " + name + " (final type: " + playlist.getClass().getSimpleName() + ")");
         return playlist;
     }
 }

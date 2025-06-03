@@ -85,12 +85,14 @@ public class ServerApp {
     }
 
     /**
-     * Accept incoming client connections in a loop
+     * Accept incoming client connections in a loop - CORRECTED VERSION
      */
     private void acceptConnections() {
         while (running) {
             try {
                 Socket socket = serverSocket.accept();
+                String clientAddress = socket.getInetAddress().toString();
+                System.out.println("✅ New client connected: " + clientAddress);
 
                 // Create and submit client handler to thread pool
                 ClientHandler handler = new ClientHandler(socket);
@@ -98,40 +100,59 @@ public class ServerApp {
 
             } catch (IOException e) {
                 if (running) {
+                    // CORRECTION: Messages en anglais
                     System.err.println("Error accepting client connection: " + e.getMessage());
                     try {
                         Thread.sleep(1000);
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
+                        System.out.println("Connection acceptance thread interrupted");
+                        break;
                     }
                 }
             } catch (Exception e) {
                 System.err.println("Unexpected error in connection acceptance: " + e.getMessage());
+                e.printStackTrace();
             }
         }
+        System.out.println("Connection acceptance loop terminated");
     }
 
     /**
-     * Gracefully shutdown the server
+     * Gracefully shutdown the server - IMPROVED VERSION
      */
     public void shutdown() {
+        System.out.println("🔄 Initiating server shutdown...");
         running = false;
 
-        // Shutdown thread pool
+        // Shutdown thread pool gracefully
         if (threadPool != null && !threadPool.isShutdown()) {
+            System.out.println("🔄 Shutting down thread pool...");
             threadPool.shutdown();
+            try {
+                // Wait up to 30 seconds for threads to finish
+                if (!threadPool.awaitTermination(30, java.util.concurrent.TimeUnit.SECONDS)) {
+                    System.out.println("⚠️ Thread pool did not terminate gracefully, forcing shutdown...");
+                    threadPool.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                System.out.println("⚠️ Server shutdown interrupted, forcing shutdown...");
+                threadPool.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
         }
 
         // Close server socket
         if (serverSocket != null && !serverSocket.isClosed()) {
             try {
                 serverSocket.close();
+                System.out.println("✅ Server socket closed");
             } catch (IOException e) {
                 System.err.println("Error closing ServerSocket: " + e.getMessage());
             }
         }
 
-        System.out.println("Server shutdown completed");
+        System.out.println("✅ Server shutdown completed");
     }
 
     /**

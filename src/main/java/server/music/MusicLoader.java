@@ -1,28 +1,22 @@
 package server.music;
 
 import java.io.File;
+import java.net.URL;
+import java.nio.file.Paths;
 import java.util.List;
 import persistence.UserPersistenceManager;
 import users.User;
 
 /**
- * Music loader implementing Singleton pattern.
- * Dynamically loads music from file system.
- * Follows Single Responsibility Principle - only handles music loading.
+ * Music loader implementing Singleton pattern - JAR COMPATIBLE VERSION
+ * Dynamically loads music from file system with JAR support.
  */
 public class MusicLoader {
     private static volatile MusicLoader instance = null;
     private boolean songsLoaded = false;
 
-    /**
-     * Private constructor for Singleton pattern
-     */
     private MusicLoader() {}
 
-    /**
-     * Get Singleton instance
-     * @return Single MusicLoader instance
-     */
     public static MusicLoader getInstance() {
         if (instance == null) {
             synchronized (MusicLoader.class) {
@@ -35,47 +29,93 @@ public class MusicLoader {
     }
 
     /**
-     * Load all songs from the MP3 directory
-     * Supports both development and production paths
+     * Load all songs with JAR compatibility
      */
     public void loadAllSongs() {
         if (!songsLoaded) {
-            // Try development path first, then production path
-            String devPath = "src/main/resources/mp3";
-            String prodPath = "resources/mp3";
+            File mp3Dir = findMp3Directory();
 
-            File devDir = new File(devPath);
-            File prodDir = new File(prodPath);
-
-            File mp3Dir;
-            if (devDir.exists() && devDir.isDirectory()) {
-                mp3Dir = devDir;
-            } else if (prodDir.exists() && prodDir.isDirectory()) {
-                mp3Dir = prodDir;
-            } else {
-                System.out.println("No MP3 directory found. No songs loaded.");
+            if (mp3Dir == null) {
+                System.out.println("❌ No MP3 directory found. No songs loaded.");
                 songsLoaded = true;
                 return;
             }
 
-            // Load MP3 files
             File[] mp3Files = mp3Dir.listFiles((dir, name) -> name.toLowerCase().endsWith(".mp3"));
             if (mp3Files == null || mp3Files.length == 0) {
-                System.out.println("No MP3 files found in directory.");
+                System.out.println("❌ No MP3 files found in directory: " + mp3Dir.getAbsolutePath());
                 songsLoaded = true;
                 return;
             }
 
-            System.out.println("Loading " + mp3Files.length + " MP3 files...");
+            System.out.println("🎵 Loading " + mp3Files.length + " MP3 files from: " + mp3Dir.getAbsolutePath());
             createSongsFromFiles(mp3Files);
+
+            // Debug: Print all loaded songs
+            System.out.println("🎵 Songs loaded in library:");
+            for (Song song : MusicLibrary.getInstance().getAllSongs()) {
+                System.out.println("  - Title: '" + song.getTitle() + "' by '" + song.getArtist() + "'");
+            }
+
             songsLoaded = true;
         }
     }
 
     /**
-     * Create Song objects from MP3 files
-     * Extracts metadata from filename
-     * @param mp3Files Array of MP3 files to process
+     * Find MP3 directory with JAR compatibility
+     */
+    private File findMp3Directory() {
+        // Try multiple possible locations
+        String[] possiblePaths = {
+                "src/main/resources/mp3",           // Development
+                "resources/mp3",                    // Production
+                "mp3",                             // Root level
+                "./mp3",                           // Current directory
+                "../mp3",                          // Parent directory
+                "./src/main/resources/mp3"         // Alternative development
+        };
+
+        for (String path : possiblePaths) {
+            File dir = new File(path);
+            if (dir.exists() && dir.isDirectory()) {
+                System.out.println("✅ Found MP3 directory: " + dir.getAbsolutePath());
+                return dir;
+            }
+        }
+
+        // Try to find using class loader (for JAR)
+        try {
+            URL resourceUrl = MusicLoader.class.getClassLoader().getResource("mp3");
+            if (resourceUrl != null) {
+                File dir = Paths.get(resourceUrl.toURI()).toFile();
+                if (dir.exists() && dir.isDirectory()) {
+                    System.out.println("✅ Found MP3 directory via classloader: " + dir.getAbsolutePath());
+                    return dir;
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("⚠️ Could not find MP3 directory via classloader: " + e.getMessage());
+        }
+
+        // Try current working directory
+        String workingDir = System.getProperty("user.dir");
+        File workingDirMp3 = new File(workingDir, "mp3");
+        if (workingDirMp3.exists() && workingDirMp3.isDirectory()) {
+            System.out.println("✅ Found MP3 directory in working directory: " + workingDirMp3.getAbsolutePath());
+            return workingDirMp3;
+        }
+
+        System.out.println("❌ MP3 directory not found. Tried paths:");
+        for (String path : possiblePaths) {
+            System.out.println("  - " + new File(path).getAbsolutePath());
+        }
+        System.out.println("  - Working directory: " + workingDir);
+
+        return null;
+    }
+
+    /**
+     * Create Song objects from MP3 files with improved parsing
      */
     private void createSongsFromFiles(File[] mp3Files) {
         for (File file : mp3Files) {
@@ -86,42 +126,65 @@ public class MusicLoader {
             Song song = new Song(songTitle, artist, "Unknown", "Unknown", 0);
             song.setFilePath(file.getAbsolutePath());
 
+            System.out.println("🎵 Created song: '" + songTitle + "' by '" + artist + "' from file: " + fileName);
             MusicLibrary.getInstance().addSong(song);
         }
     }
 
     /**
-     * Extract song title from filename
-     * Supports format: "Artist - Title.mp3"
-     * @param fileName Original filename
-     * @return Extracted title
+     * Extract song title from filename with comprehensive cleaning
      */
     private String extractTitleFromFileName(String fileName) {
         // Remove .mp3 extension
-        String title = fileName.substring(0, fileName.lastIndexOf('.'));
+        String nameWithoutExtension = fileName.substring(0, fileName.lastIndexOf('.'));
+
+        // Clean up common patterns in filenames
+        String cleaned = nameWithoutExtension
+                .replaceAll("\\(Official.*?\\)", "")     // Remove (Official Video), etc.
+                .replaceAll("\\(Clip.*?\\)", "")         // Remove (Clip Officiel), etc.
+                .replaceAll("\\(Lyrics.*?\\)", "")       // Remove (Lyrics Video), etc.
+                .replaceAll("\\(Audio.*?\\)", "")        // Remove (Audio), etc.
+                .replaceAll("\\[.*?\\]", "")             // Remove [anything]
+                .replaceAll("\\{.*?\\}", "")             // Remove {anything}
+                .replaceAll("HD|4K|1080p|720p", "")      // Remove quality indicators
+                .replaceAll("\\s+", " ")                 // Normalize whitespace
+                .trim();
 
         // If filename contains " - ", extract the part after it as title
-        if (title.contains(" - ")) {
-            String[] parts = title.split(" - ", 2);
-            return parts.length > 1 ? parts[1].trim() : parts[0].trim();
+        if (cleaned.contains(" - ")) {
+            String[] parts = cleaned.split(" - ", 2);
+            if (parts.length > 1) {
+                return parts[1].trim();
+            } else {
+                return parts[0].trim();
+            }
         }
 
-        return title;
+        return cleaned;
     }
 
     /**
-     * Extract artist from filename
-     * Supports format: "Artist - Title.mp3"
-     * @param fileName Original filename
-     * @return Extracted artist name
+     * Extract artist from filename with comprehensive cleaning
      */
     private String extractArtistFromFileName(String fileName) {
         // Remove .mp3 extension
-        String title = fileName.substring(0, fileName.lastIndexOf('.'));
+        String nameWithoutExtension = fileName.substring(0, fileName.lastIndexOf('.'));
+
+        // Clean up common patterns
+        String cleaned = nameWithoutExtension
+                .replaceAll("\\(Official.*?\\)", "")
+                .replaceAll("\\(Clip.*?\\)", "")
+                .replaceAll("\\(Lyrics.*?\\)", "")
+                .replaceAll("\\(Audio.*?\\)", "")
+                .replaceAll("\\[.*?\\]", "")
+                .replaceAll("\\{.*?\\}", "")
+                .replaceAll("HD|4K|1080p|720p", "")
+                .replaceAll("\\s+", " ")
+                .trim();
 
         // If filename contains " - ", extract the part before it as artist
-        if (title.contains(" - ")) {
-            String[] parts = title.split(" - ", 2);
+        if (cleaned.contains(" - ")) {
+            String[] parts = cleaned.split(" - ", 2);
             return parts[0].trim();
         }
 
@@ -130,7 +193,6 @@ public class MusicLoader {
 
     /**
      * Update file paths for existing playlist songs
-     * Repairs playlists after songs are loaded
      */
     public void repairExistingPlaylists() {
         List<User> allUsers = UserPersistenceManager.loadUsers();
@@ -141,11 +203,12 @@ public class MusicLoader {
                 List<Song> songs = playlist.getSongs();
                 for (Song playlistSong : songs) {
                     if (playlistSong.getFilePath() == null || playlistSong.getFilePath().isEmpty()) {
-                        // Find matching song in library
+                        // Find matching song in library (case insensitive)
                         for (Song librarySong : MusicLibrary.getInstance().getAllSongs()) {
-                            if (librarySong.getTitle().equals(playlistSong.getTitle())) {
+                            if (librarySong.getTitle().equalsIgnoreCase(playlistSong.getTitle())) {
                                 playlistSong.setFilePath(librarySong.getFilePath());
                                 changesFound = true;
+                                System.out.println("🔧 Repaired file path for song: " + playlistSong.getTitle());
                                 break;
                             }
                         }
@@ -154,9 +217,9 @@ public class MusicLoader {
             }
         }
 
-        // Save changes if any were made
         if (changesFound) {
             UserPersistenceManager.saveUsers(allUsers);
+            System.out.println("✅ Playlist repairs saved to persistence");
         }
     }
 }
