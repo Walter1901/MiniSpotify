@@ -241,7 +241,7 @@ public class PlayerUI {
                         System.out.println(response);
 
                         // Pause player and get position
-                        pausePosition = audioPlayer.pause();
+                        audioPlayer.pause();
                         isPlaying = false;
                         isPaused = true;
                         System.out.println("Playback paused" + (currentSongTitle != null ? ": " + currentSongTitle : ""));

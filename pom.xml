@@ -12,7 +12,16 @@
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <javafx.version>17.0.2</javafx.version>
     </properties>
+
+    <repositories>
+        <repository>
+            <id>central</id>
+            <name>Central Repository</name>
+            <url>https://repo.maven.apache.org/maven2</url>
+        </repository>
+    </repositories>
 
     <dependencies>
         <!-- Google Gson for JSON processing -->
@@ -22,11 +31,32 @@
             <version>2.10.1</version>
         </dependency>
 
-        <!-- JLayer for MP3 playback -->
+        <!-- JLayer for MP3 playback (backup solution) -->
         <dependency>
             <groupId>javazoom</groupId>
             <artifactId>jlayer</artifactId>
             <version>1.0.1</version>
+        </dependency>
+
+        <!-- JavaFX Controls (for MediaPlayer) -->
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-controls</artifactId>
+            <version>${javafx.version}</version>
+        </dependency>
+
+        <!-- JavaFX Media (for audio playback) -->
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-media</artifactId>
+            <version>${javafx.version}</version>
+        </dependency>
+
+        <!-- JavaFX Swing (for integration with Swing/Console apps) -->
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-swing</artifactId>
+            <version>${javafx.version}</version>
         </dependency>
     </dependencies>
 
@@ -40,6 +70,16 @@
                 <configuration>
                     <source>11</source>
                     <target>11</target>
+                </configuration>
+            </plugin>
+
+            <!-- JavaFX Maven Plugin -->
+            <plugin>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-maven-plugin</artifactId>
+                <version>0.0.8</version>
+                <configuration>
+                    <mainClass>server.ServerApp</mainClass>
                 </configuration>
             </plugin>
 
