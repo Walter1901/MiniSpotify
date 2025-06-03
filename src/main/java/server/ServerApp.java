@@ -10,6 +10,7 @@ import java.util.concurrent.Executors;
 import server.music.MusicLibrary;
 import server.music.MusicLoader;
 import server.config.ServerConfig;
+import utils.AppLogger;
 
 /**
  * Main server application implementing Singleton pattern.
@@ -56,12 +57,18 @@ public class ServerApp {
     public void start() {
         showServerBanner();
 
-        // Initialize music library
-        initializeMusicLibrary();
+        // Initialize music library avec logging
+        AppLogger.OperationTimer timer = AppLogger.startOperation("Music Library Loading");
+        MusicLoader.getInstance().loadAllSongs();
+        int songCount = MusicLibrary.getInstance().size();
+        timer.completeWithSuccess(songCount + " songs loaded");
+        AppLogger.musicLibraryLoaded(songCount);
 
         try {
             serverSocket = new ServerSocket(port);
             running = true;
+
+            AppLogger.serverStarted(port);
             showServerStarted();
 
             // Start connection acceptance in separate thread
@@ -76,10 +83,11 @@ public class ServerApp {
             try {
                 acceptThread.join();
             } catch (InterruptedException e) {
-                showServerInterrupted();
+                AppLogger.warn("Server interrupted");
             }
 
         } catch (IOException e) {
+            AppLogger.serverError("Failed to start server", e);
             showServerStartError(e.getMessage());
         } finally {
             shutdown();
@@ -94,7 +102,8 @@ public class ServerApp {
             try {
                 Socket socket = serverSocket.accept();
                 String clientAddress = socket.getInetAddress().getHostAddress();
-                showClientConnected(clientAddress);
+
+                AppLogger.clientConnected(clientAddress);
 
                 // Create and submit client handler to thread pool
                 ClientHandler handler = new ClientHandler(socket);
@@ -102,7 +111,7 @@ public class ServerApp {
 
             } catch (IOException e) {
                 if (running) {
-                    showConnectionError();
+                    AppLogger.warn("Connection error occurred: {}", e.getMessage());
                     try {
                         Thread.sleep(1000);
                     } catch (InterruptedException ie) {
@@ -111,7 +120,7 @@ public class ServerApp {
                     }
                 }
             } catch (Exception e) {
-                showUnexpectedError();
+                AppLogger.error("Unexpected error in connection handling", e);
             }
         }
     }
@@ -120,7 +129,7 @@ public class ServerApp {
      * Gracefully shutdown the server
      */
     public void shutdown() {
-        showShutdownInitiated();
+        AppLogger.info("Initiating graceful shutdown...");
         running = false;
 
         // Shutdown thread pool gracefully
@@ -129,6 +138,7 @@ public class ServerApp {
             try {
                 if (!threadPool.awaitTermination(30, java.util.concurrent.TimeUnit.SECONDS)) {
                     threadPool.shutdownNow();
+                    AppLogger.warn("Thread pool forced shutdown");
                 }
             } catch (InterruptedException e) {
                 threadPool.shutdownNow();
@@ -141,10 +151,11 @@ public class ServerApp {
             try {
                 serverSocket.close();
             } catch (IOException e) {
-                // Silent close
+                AppLogger.debug("Error closing server socket: {}", e.getMessage());
             }
         }
 
+        AppLogger.serverStopped();
         showShutdownComplete();
     }
 
@@ -153,10 +164,16 @@ public class ServerApp {
      */
     private void initializeMusicLibrary() {
         System.out.print("🎵 Loading music library... ");
+        AppLogger.OperationTimer timer = AppLogger.startOperation("Music Library Loading");
+
         MusicLoader.getInstance().loadAllSongs();
         int songCount = MusicLibrary.getInstance().size();
+
         System.out.println("✅ " + songCount + " songs loaded");
+        timer.completeWithSuccess(songCount + " songs loaded");
+        AppLogger.musicLibraryLoaded(songCount);
     }
+
 
     /**
      * Display server banner
@@ -190,14 +207,6 @@ public class ServerApp {
         System.out.println();
         System.out.println("📋 SERVER LOG:");
         System.out.println("─".repeat(84));
-    }
-
-    /**
-     * Show client connected
-     */
-    private void showClientConnected(String clientAddress) {
-        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
-        System.out.printf("[%s] 🔗 Client connected: %s%n", timestamp, clientAddress);
     }
 
     /**

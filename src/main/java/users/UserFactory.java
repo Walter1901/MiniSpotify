@@ -2,6 +2,7 @@ package users;
 
 import persistence.UserPersistenceManager;
 import utils.PasswordHasher;
+import utils.SecurePasswordHasher;
 
 /**
  * Factory for creating different types of users.
@@ -26,7 +27,7 @@ public class UserFactory {
      */
     public static User createUser(String username, String password, String accountType) {
         // Hash password for security
-        String hashedPassword = PasswordHasher.hashPassword(password);
+        String hashedPassword = SecurePasswordHasher.hashPassword(password);
 
         User newUser;
 

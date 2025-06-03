@@ -132,6 +132,13 @@ public abstract class User {
     }
 
     /**
+     * Set password hash (for migration and password resets)
+     */
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
+
+    /**
      * Set user's playlists
      * @param playlists List of playlists to set
      */

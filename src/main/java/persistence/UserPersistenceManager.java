@@ -258,13 +258,69 @@ public class UserPersistenceManager {
     }
 
     /**
-     * Add a single user and save immediately
+     * Add a single user and save immediately with retry mechanism
      * @param user User to add
      */
     public static void addUser(User user) {
         List<User> users = loadUsers();
+
+        // Check if user already exists (avoid duplicates)
+        boolean exists = users.stream()
+                .anyMatch(u -> u.getUsername().equalsIgnoreCase(user.getUsername()));
+
+        if (exists) {
+            System.out.println("DEBUG: User already exists, updating instead: " + user.getUsername());
+            updateUser(user);
+            return;
+        }
+
         users.add(user);
-        saveUsers(users);
+
+        // Save with retry mechanism
+        boolean saved = false;
+        int attempts = 0;
+        int maxAttempts = 3;
+
+        while (!saved && attempts < maxAttempts) {
+            try {
+                saveUsers(users);
+                saved = true;
+                System.out.println("DEBUG: User saved successfully on attempt " + (attempts + 1));
+            } catch (Exception e) {
+                attempts++;
+                System.out.println("DEBUG: Save attempt " + attempts + " failed: " + e.getMessage());
+                if (attempts < maxAttempts) {
+                    try {
+                        Thread.sleep(100); // Wait 100ms before retry
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (!saved) {
+            System.err.println("ERROR: Failed to save user after " + maxAttempts + " attempts");
+        }
+    }
+
+    /**
+     * Get a user by username with better error handling
+     * @param username Username to search for
+     * @return User if found, null otherwise
+     */
+    public static User getUserByUsername(String username) {
+        try {
+            List<User> users = loadUsers();
+            return users.stream()
+                    .filter(u -> u.getUsername().equalsIgnoreCase(username)) // Case insensitive
+                    .findFirst()
+                    .orElse(null);
+        } catch (Exception e) {
+            System.err.println("ERROR: Failed to get user by username: " + e.getMessage());
+            return null;
+        }
     }
 
     /**
@@ -304,17 +360,6 @@ public class UserPersistenceManager {
         saveUsers(users);
     }
 
-    /**
-     * Get a user by username
-     * @param username Username to search for
-     * @return User if found, null otherwise
-     */
-    public static User getUserByUsername(String username) {
-        return loadUsers().stream()
-                .filter(u -> u.getUsername().equals(username))
-                .findFirst()
-                .orElse(null);
-    }
 
     /**
      * Clean up invalid playlists for a user

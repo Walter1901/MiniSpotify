@@ -1,121 +1,7 @@
 [
   {
-    "username": "Walter1901",
-    "passwordHash": "5994471abb01112afcc18159f6cc74b4f511b99806da59b3caf5a9c173cacfc5",
-    "accountType": "premium",
-    "sharePlaylistsPublicly": true,
-    "playlists": [
-      {
-        "name": "Summer2025",
-        "type": "standard",
-        "songs": [
-          {
-            "title": "Ciel",
-            "artist": "GIMS",
-            "album": "Rap",
-            "genre": "Hip-Hop",
-            "duration": 0,
-            "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\GIMS - Ciel (Official Lyrics Video).mp3"
-          },
-          {
-            "title": "NINAO",
-            "artist": "GIMS",
-            "album": "Rap",
-            "genre": "Hip-Hop",
-            "duration": 0,
-            "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\GIMS  - NINAO (Official Lyrics Vidéo).mp3"
-          },
-          {
-            "title": "Mussulo",
-            "artist": "Dj Aka-m e Dj Malvado Feat Dody",
-            "album": "Afro House",
-            "genre": "Electronic",
-            "duration": 0,
-            "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\Dj Aka-m e Dj Malvado Feat Dody - Mussulo.mp3"
-          }
-        ]
-      },
-      {
-        "name": "Summer",
-        "type": "standard",
-        "songs": [
-          {
-            "title": "Ciel",
-            "artist": "GIMS",
-            "album": "Rap",
-            "genre": "Hip-Hop",
-            "duration": 0,
-            "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\Keblack Ft. Guy2Bezbar - Melrose Place (Clip Officiel).mp3"
-          },
-          {
-            "title": "NINAO",
-            "artist": "GIMS",
-            "album": "Rap",
-            "genre": "Hip-Hop",
-            "duration": 0,
-            "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\GIMS  - NINAO (Official Lyrics Vidéo).mp3"
-          }
-        ]
-      },
-      {
-        "name": "Hello",
-        "type": "standard",
-        "songs": []
-      },
-      {
-        "name": "Hi",
-        "type": "standard",
-        "songs": [
-          {
-            "title": "Ciel",
-            "artist": "GIMS",
-            "album": "Rap",
-            "genre": "Hip-Hop",
-            "duration": 0,
-            "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\Keblack Ft. Guy2Bezbar - Melrose Place (Clip Officiel).mp3"
-          },
-          {
-            "title": "NINAO",
-            "artist": "GIMS",
-            "album": "Rap",
-            "genre": "Hip-Hop",
-            "duration": 0,
-            "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\GIMS  - NINAO (Official Lyrics Vidéo).mp3"
-          }
-        ]
-      },
-      {
-        "name": "Salut",
-        "type": "collaborative",
-        "owner": "Walter1901",
-        "collaborators": [],
-        "songs": [
-          {
-            "title": "Ciel",
-            "artist": "GIMS",
-            "album": "Rap",
-            "genre": "Hip-Hop",
-            "duration": 0,
-            "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\Keblack Ft. Guy2Bezbar - Melrose Place (Clip Officiel).mp3"
-          },
-          {
-            "title": "NINAO",
-            "artist": "GIMS",
-            "album": "Rap",
-            "genre": "Hip-Hop",
-            "duration": 0,
-            "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\GIMS  - NINAO (Official Lyrics Vidéo).mp3"
-          }
-        ]
-      }
-    ],
-    "followedUsers": [
-      "walter"
-    ]
-  },
-  {
     "username": "walter",
-    "passwordHash": "5994471abb01112afcc18159f6cc74b4f511b99806da59b3caf5a9c173cacfc5",
+    "passwordHash": "a2m8PjggAR5k2p3hdaL4rg\u003d\u003d:zwZh/uHNJWkxHlmj0QdxPUZDpx3L27WW1jxawjzaZW0\u003d",
     "accountType": "free",
     "sharePlaylistsPublicly": true,
     "playlists": [
@@ -160,11 +46,110 @@
             "genre": "Unknown",
             "duration": 0,
             "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\Dj Aka-m e Dj Malvado Feat Dody - Mussulo.mp3"
+          },
+          {
+            "title": "NINAO",
+            "artist": "GIMS",
+            "album": "Unknown",
+            "genre": "Unknown",
+            "duration": 0,
+            "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\GIMS  - NINAO (Official Lyrics Vidéo).mp3"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "username": "Walter1901",
+    "passwordHash": "jj/6DlIJNfGqeGFT69mJlA\u003d\u003d:rd+LKYmrbt/JimfCu+Zm9ojqXKraHdcmCLpoITQWiIY\u003d",
+    "accountType": "premium",
+    "sharePlaylistsPublicly": true,
+    "playlists": [
+      {
+        "name": "Summer2025",
+        "type": "collaborative",
+        "owner": "Walter1901",
+        "collaborators": [],
+        "songs": [
+          {
+            "title": "Mussulo",
+            "artist": "Dj Aka-m e Dj Malvado Feat Dody",
+            "album": "Unknown",
+            "genre": "Unknown",
+            "duration": 0,
+            "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\Dj Aka-m e Dj Malvado Feat Dody - Mussulo.mp3"
+          },
+          {
+            "title": "Ciel",
+            "artist": "GIMS",
+            "album": "Unknown",
+            "genre": "Unknown",
+            "duration": 0,
+            "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\GIMS - Ciel (Official Lyrics Video).mp3"
+          },
+          {
+            "title": "NINAO",
+            "artist": "GIMS",
+            "album": "Unknown",
+            "genre": "Unknown",
+            "duration": 0,
+            "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\GIMS  - NINAO (Official Lyrics Vidéo).mp3"
+          },
+          {
+            "title": "Mood",
+            "artist": "Keblack",
+            "album": "Unknown",
+            "genre": "Unknown",
+            "duration": 0,
+            "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\Keblack - Mood (Clip Officiel).mp3"
+          },
+          {
+            "title": "Melrose Place",
+            "artist": "Keblack Ft. Guy2Bezbar",
+            "album": "Unknown",
+            "genre": "Unknown",
+            "duration": 0,
+            "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\Keblack Ft. Guy2Bezbar - Melrose Place (Clip Officiel).mp3"
+          }
+        ]
+      },
+      {
+        "name": "Tests",
+        "type": "collaborative",
+        "owner": "Walter1901",
+        "collaborators": [],
+        "songs": [
+          {
+            "title": "NINAO",
+            "artist": "GIMS",
+            "album": "Unknown",
+            "genre": "Unknown",
+            "duration": 0,
+            "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\GIMS  - NINAO (Official Lyrics Vidéo).mp3"
+          },
+          {
+            "title": "Ciel",
+            "artist": "GIMS",
+            "album": "Unknown",
+            "genre": "Unknown",
+            "duration": 0,
+            "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\GIMS - Ciel (Official Lyrics Video).mp3"
           }
         ]
       }
     ],
     "followedUsers": [
+      "walter",
+      "Walter1"
+    ]
+  },
+  {
+    "username": "Walter1",
+    "passwordHash": "RKQagNYhb5jTuXzZTnxUhQ\u003d\u003d:O5CpZgr+AZoij1/I0lZ01eu1t8ewh/x/XaH0Itigk3c\u003d",
+    "accountType": "premium",
+    "sharePlaylistsPublicly": true,
+    "followedUsers": [
+      "walter",
       "Walter1901"
     ]
   }
