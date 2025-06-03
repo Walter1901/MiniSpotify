@@ -43,7 +43,6 @@ public class PlaybackService {
      */
     public void play() {
         if (playlist == null || playlist.isEmpty()) {
-            System.out.println("Cannot play: playlist is empty or not loaded");
             return;
         }
 
@@ -56,12 +55,7 @@ public class PlaybackService {
                 if (file.exists()) {
                     // Just start playback - no state management here
                     audioPlayer.play(filePath);
-                    System.out.println("🎵 PlaybackService: Starting " + currentSong.getTitle());
-                } else {
-                    System.out.println("⚠️ File not found: " + filePath);
                 }
-            } else {
-                System.out.println("⚠️ Missing audio file for song: " + currentSong.getTitle());
             }
 
             // Update internal state (for state pattern)

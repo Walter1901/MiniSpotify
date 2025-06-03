@@ -99,7 +99,7 @@ public class UserPersistenceManager {
                                     Playlist playlist = gson.fromJson(playlistElement, Playlist.class);
                                     user.addPlaylist(playlist);
                                 } catch (Exception e) {
-                                    System.err.println("Error loading playlist: " + e.getMessage());
+                                    // Skip invalid playlists
                                 }
                             }
                         }
@@ -122,7 +122,7 @@ public class UserPersistenceManager {
                         users.add(user);
 
                     } catch (Exception e) {
-                        System.err.println("Error processing user entry: " + e.getMessage());
+                        // Skip problematic user entries
                     }
                 }
 
@@ -131,7 +131,6 @@ public class UserPersistenceManager {
 
             }
         } catch (IOException | JsonSyntaxException e) {
-            System.err.println("Error loading users: " + e.getMessage());
             createEmptyUsersFile();
         }
 
@@ -164,7 +163,7 @@ public class UserPersistenceManager {
         try (Writer writer = new FileWriter(USERS_FILE)) {
             writer.write("[]");
         } catch (IOException e) {
-            System.err.println("Failed to create empty users file: " + e.getMessage());
+            // Silent fail
         }
     }
 
@@ -241,15 +240,13 @@ public class UserPersistenceManager {
             }
 
         } catch (IOException e) {
-            System.err.println("Error saving users: " + e.getMessage());
-
             // Restore backup if available
             File backupFile = new File(USERS_FILE + ".bak");
             if (backupFile.exists() && originalFile.exists() && originalFile.length() == 0) {
                 try {
                     Files.copy(backupFile.toPath(), originalFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
                 } catch (IOException restoreError) {
-                    System.err.println("Failed to restore backup: " + restoreError.getMessage());
+                    // Silent restore failure
                 }
             }
 

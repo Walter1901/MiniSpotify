@@ -52,6 +52,7 @@ public class ClientApp {
      */
     public boolean connect() {
         try {
+            showConnectionBanner();
             socket = new Socket(SERVER_ADDRESS, SERVER_PORT);
             in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             out = new PrintWriter(socket.getOutputStream(), true);
@@ -59,11 +60,11 @@ public class ClientApp {
 
             // Read welcome message from server
             String welcomeMessage = in.readLine();
-            System.out.println(welcomeMessage);
+            showConnectionSuccess();
 
             return true;
         } catch (IOException e) {
-            System.err.println("Error connecting to server: " + e.getMessage());
+            showConnectionError();
             return false;
         }
     }
@@ -78,7 +79,7 @@ public class ClientApp {
             if (out != null) out.close();
             if (socket != null && !socket.isClosed()) socket.close();
         } catch (IOException e) {
-            System.err.println("Error disconnecting: " + e.getMessage());
+            // Silent cleanup
         }
     }
 
@@ -87,12 +88,60 @@ public class ClientApp {
      */
     public void startUI() {
         if (!isConnected) {
-            System.err.println("Cannot start UI - not connected to server.");
+            showNotConnectedError();
             return;
         }
 
         ui = new UserInterface(socket, in, out);
         ui.start();
+    }
+
+    /**
+     * Display connection banner
+     */
+    private void showConnectionBanner() {
+        System.out.println();
+        System.out.println("╔══════════════════════════════════════════════════════════════════════════════════╗");
+        System.out.println("║                           🔗 CONNECTING TO SERVER                                ║");
+        System.out.println("╚══════════════════════════════════════════════════════════════════════════════════╝");
+        System.out.print("🔄 Connecting to " + SERVER_ADDRESS + ":" + SERVER_PORT + "... ");
+    }
+
+    /**
+     * Display connection success
+     */
+    private void showConnectionSuccess() {
+        System.out.println("✅ Connected!");
+        System.out.println();
+        System.out.println("╔══════════════════════════════════════════════════════════════════════════════════╗");
+        System.out.println("║                          🎉 CONNECTION ESTABLISHED                               ║");
+        System.out.println("╚══════════════════════════════════════════════════════════════════════════════════╝");
+        System.out.println();
+    }
+
+    /**
+     * Display connection error
+     */
+    private void showConnectionError() {
+        System.out.println("❌ Failed!");
+        System.out.println();
+        System.out.println("╔══════════════════════════════════════════════════════════════════════════════════╗");
+        System.out.println("║                            ❌ CONNECTION FAILED                                  ║");
+        System.out.println("║                                                                                  ║");
+        System.out.println("║  • Please ensure the server is running                                          ║");
+        System.out.println("║  • Check your network connection                                                ║");
+        System.out.println("║  • Verify server address and port                                               ║");
+        System.out.println("╚══════════════════════════════════════════════════════════════════════════════════╝");
+    }
+
+    /**
+     * Display not connected error
+     */
+    private void showNotConnectedError() {
+        System.out.println("╔══════════════════════════════════════════════════════════════════════════════════╗");
+        System.out.println("║                              ⚠️  NOT CONNECTED                                   ║");
+        System.out.println("║                     Cannot start UI - not connected to server                   ║");
+        System.out.println("╚══════════════════════════════════════════════════════════════════════════════════╝");
     }
 
     /**
@@ -103,7 +152,7 @@ public class ClientApp {
         if (client.connect()) {
             client.startUI();
         } else {
-            System.err.println("Failed to connect. Exiting.");
+            System.out.println("\n🚪 Exiting application...");
         }
     }
 

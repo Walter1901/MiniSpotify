@@ -29,7 +29,6 @@ public class AudioPlayer {
         if (!isInitialized) {
             new JFXPanel();
             isInitialized = true;
-            System.out.println("🎵 Audio Player initialized");
         }
     }
 
@@ -52,13 +51,11 @@ public class AudioPlayer {
 
                 // Validate file
                 if (filePath == null || filePath.isEmpty()) {
-                    System.out.println("⚠️ Invalid file path");
                     return;
                 }
 
                 File file = new File(filePath);
                 if (!file.exists()) {
-                    System.out.println("⚠️ File not found: " + file.getName());
                     return;
                 }
 
@@ -69,19 +66,18 @@ public class AudioPlayer {
                 // Simple listeners - NO state updates
                 mediaPlayer.setOnReady(() -> {
                     mediaPlayer.play();
-                    System.out.println("🎵 Started: " + file.getName());
                 });
 
                 mediaPlayer.setOnError(() -> {
-                    System.out.println("⚠️ Media error: " + file.getName());
+                    // Silent error handling
                 });
 
                 mediaPlayer.setOnEndOfMedia(() -> {
-                    System.out.println("🎵 Ended: " + file.getName());
+                    // Silent end handling
                 });
 
             } catch (Exception e) {
-                System.out.println("⚠️ Play error: " + e.getMessage());
+                // Silent error handling
             }
         });
     }
@@ -94,9 +90,8 @@ public class AudioPlayer {
             if (mediaPlayer != null) {
                 try {
                     mediaPlayer.pause();
-                    System.out.println("⏸️ Audio paused");
                 } catch (Exception e) {
-                    System.out.println("⚠️ Pause error: " + e.getMessage());
+                    // Silent error handling
                 }
             }
         });
@@ -110,9 +105,8 @@ public class AudioPlayer {
             if (mediaPlayer != null) {
                 try {
                     mediaPlayer.play();
-                    System.out.println("▶️ Audio resumed");
                 } catch (Exception e) {
-                    System.out.println("⚠️ Resume error: " + e.getMessage());
+                    // Silent error handling
                 }
             }
         });
@@ -129,9 +123,8 @@ public class AudioPlayer {
                     mediaPlayer.dispose();
                     mediaPlayer = null;
                 }
-                System.out.println("⏹️ Audio stopped");
             } catch (Exception e) {
-                System.out.println("⚠️ Stop error: " + e.getMessage());
+                // Silent error handling
             }
         });
     }

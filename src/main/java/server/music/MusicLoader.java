@@ -8,7 +8,7 @@ import persistence.UserPersistenceManager;
 import users.User;
 
 /**
- * Music loader implementing Singleton pattern - JAR COMPATIBLE VERSION
+ * Music loader implementing Singleton pattern
  * Dynamically loads music from file system with JAR support.
  */
 public class MusicLoader {
@@ -36,27 +36,19 @@ public class MusicLoader {
             File mp3Dir = findMp3Directory();
 
             if (mp3Dir == null) {
-                System.out.println("❌ No MP3 directory found. No songs loaded.");
+                System.out.println("❌ No MP3 directory found");
                 songsLoaded = true;
                 return;
             }
 
             File[] mp3Files = mp3Dir.listFiles((dir, name) -> name.toLowerCase().endsWith(".mp3"));
             if (mp3Files == null || mp3Files.length == 0) {
-                System.out.println("❌ No MP3 files found in directory: " + mp3Dir.getAbsolutePath());
+                System.out.println("❌ No MP3 files found in directory");
                 songsLoaded = true;
                 return;
             }
 
-            System.out.println("🎵 Loading " + mp3Files.length + " MP3 files from: " + mp3Dir.getAbsolutePath());
             createSongsFromFiles(mp3Files);
-
-            // Debug: Print all loaded songs
-            System.out.println("🎵 Songs loaded in library:");
-            for (Song song : MusicLibrary.getInstance().getAllSongs()) {
-                System.out.println("  - Title: '" + song.getTitle() + "' by '" + song.getArtist() + "'");
-            }
-
             songsLoaded = true;
         }
     }
@@ -78,7 +70,6 @@ public class MusicLoader {
         for (String path : possiblePaths) {
             File dir = new File(path);
             if (dir.exists() && dir.isDirectory()) {
-                System.out.println("✅ Found MP3 directory: " + dir.getAbsolutePath());
                 return dir;
             }
         }
@@ -89,27 +80,19 @@ public class MusicLoader {
             if (resourceUrl != null) {
                 File dir = Paths.get(resourceUrl.toURI()).toFile();
                 if (dir.exists() && dir.isDirectory()) {
-                    System.out.println("✅ Found MP3 directory via classloader: " + dir.getAbsolutePath());
                     return dir;
                 }
             }
         } catch (Exception e) {
-            System.out.println("⚠️ Could not find MP3 directory via classloader: " + e.getMessage());
+            // Silent fail
         }
 
         // Try current working directory
         String workingDir = System.getProperty("user.dir");
         File workingDirMp3 = new File(workingDir, "mp3");
         if (workingDirMp3.exists() && workingDirMp3.isDirectory()) {
-            System.out.println("✅ Found MP3 directory in working directory: " + workingDirMp3.getAbsolutePath());
             return workingDirMp3;
         }
-
-        System.out.println("❌ MP3 directory not found. Tried paths:");
-        for (String path : possiblePaths) {
-            System.out.println("  - " + new File(path).getAbsolutePath());
-        }
-        System.out.println("  - Working directory: " + workingDir);
 
         return null;
     }
@@ -126,7 +109,6 @@ public class MusicLoader {
             Song song = new Song(songTitle, artist, "Unknown", "Unknown", 0);
             song.setFilePath(file.getAbsolutePath());
 
-            System.out.println("🎵 Created song: '" + songTitle + "' by '" + artist + "' from file: " + fileName);
             MusicLibrary.getInstance().addSong(song);
         }
     }
@@ -208,7 +190,6 @@ public class MusicLoader {
                             if (librarySong.getTitle().equalsIgnoreCase(playlistSong.getTitle())) {
                                 playlistSong.setFilePath(librarySong.getFilePath());
                                 changesFound = true;
-                                System.out.println("🔧 Repaired file path for song: " + playlistSong.getTitle());
                                 break;
                             }
                         }
@@ -219,7 +200,6 @@ public class MusicLoader {
 
         if (changesFound) {
             UserPersistenceManager.saveUsers(allUsers);
-            System.out.println("✅ Playlist repairs saved to persistence");
         }
     }
 }

@@ -3,6 +3,8 @@ package server;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import server.music.MusicLibrary;
@@ -52,14 +54,15 @@ public class ServerApp {
      * Start the server and begin accepting client connections
      */
     public void start() {
-        // Initialize music library using Singleton MusicLoader
-        MusicLoader.getInstance().loadAllSongs();
+        showServerBanner();
+
+        // Initialize music library
+        initializeMusicLibrary();
 
         try {
             serverSocket = new ServerSocket(port);
             running = true;
-            System.out.println("✅ Server started on port " + port);
-            System.out.println("Maximum clients: " + ServerConfig.MAX_CLIENTS);
+            showServerStarted();
 
             // Start connection acceptance in separate thread
             Thread acceptThread = new Thread(this::acceptConnections);
@@ -73,26 +76,25 @@ public class ServerApp {
             try {
                 acceptThread.join();
             } catch (InterruptedException e) {
-                System.out.println("Server interrupted");
+                showServerInterrupted();
             }
 
         } catch (IOException e) {
-            System.err.println("❌ ERROR: Unable to start server");
-            System.err.println("Error details: " + e.getMessage());
+            showServerStartError(e.getMessage());
         } finally {
             shutdown();
         }
     }
 
     /**
-     * Accept incoming client connections in a loop - CORRECTED VERSION
+     * Accept incoming client connections in a loop
      */
     private void acceptConnections() {
         while (running) {
             try {
                 Socket socket = serverSocket.accept();
-                String clientAddress = socket.getInetAddress().toString();
-                System.out.println("✅ New client connected: " + clientAddress);
+                String clientAddress = socket.getInetAddress().getHostAddress();
+                showClientConnected(clientAddress);
 
                 // Create and submit client handler to thread pool
                 ClientHandler handler = new ClientHandler(socket);
@@ -100,43 +102,35 @@ public class ServerApp {
 
             } catch (IOException e) {
                 if (running) {
-                    // CORRECTION: Messages en anglais
-                    System.err.println("Error accepting client connection: " + e.getMessage());
+                    showConnectionError();
                     try {
                         Thread.sleep(1000);
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
-                        System.out.println("Connection acceptance thread interrupted");
                         break;
                     }
                 }
             } catch (Exception e) {
-                System.err.println("Unexpected error in connection acceptance: " + e.getMessage());
-                e.printStackTrace();
+                showUnexpectedError();
             }
         }
-        System.out.println("Connection acceptance loop terminated");
     }
 
     /**
-     * Gracefully shutdown the server - IMPROVED VERSION
+     * Gracefully shutdown the server
      */
     public void shutdown() {
-        System.out.println("🔄 Initiating server shutdown...");
+        showShutdownInitiated();
         running = false;
 
         // Shutdown thread pool gracefully
         if (threadPool != null && !threadPool.isShutdown()) {
-            System.out.println("🔄 Shutting down thread pool...");
             threadPool.shutdown();
             try {
-                // Wait up to 30 seconds for threads to finish
                 if (!threadPool.awaitTermination(30, java.util.concurrent.TimeUnit.SECONDS)) {
-                    System.out.println("⚠️ Thread pool did not terminate gracefully, forcing shutdown...");
                     threadPool.shutdownNow();
                 }
             } catch (InterruptedException e) {
-                System.out.println("⚠️ Server shutdown interrupted, forcing shutdown...");
                 threadPool.shutdownNow();
                 Thread.currentThread().interrupt();
             }
@@ -146,13 +140,128 @@ public class ServerApp {
         if (serverSocket != null && !serverSocket.isClosed()) {
             try {
                 serverSocket.close();
-                System.out.println("✅ Server socket closed");
             } catch (IOException e) {
-                System.err.println("Error closing ServerSocket: " + e.getMessage());
+                // Silent close
             }
         }
 
-        System.out.println("✅ Server shutdown completed");
+        showShutdownComplete();
+    }
+
+    /**
+     * Initialize music library
+     */
+    private void initializeMusicLibrary() {
+        System.out.print("🎵 Loading music library... ");
+        MusicLoader.getInstance().loadAllSongs();
+        int songCount = MusicLibrary.getInstance().size();
+        System.out.println("✅ " + songCount + " songs loaded");
+    }
+
+    /**
+     * Display server banner
+     */
+    private void showServerBanner() {
+        System.out.println();
+        System.out.println("╔══════════════════════════════════════════════════════════════════════════════════╗");
+        System.out.println("║                                                                                  ║");
+        System.out.println("║                          🎵 MINI SPOTIFY SERVER 🎵                              ║");
+        System.out.println("║                                                                                  ║");
+        System.out.println("║                              Starting up...                                     ║");
+        System.out.println("║                                                                                  ║");
+        System.out.println("╚══════════════════════════════════════════════════════════════════════════════════╝");
+        System.out.println();
+    }
+
+    /**
+     * Display server started message
+     */
+    private void showServerStarted() {
+        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
+        System.out.println("╔══════════════════════════════════════════════════════════════════════════════════╗");
+        System.out.println("║                              ✅ SERVER ONLINE                                    ║");
+        System.out.println("║                                                                                  ║");
+        System.out.printf("║  🌐 Address: localhost:%-8d                                            ║%n", port);
+        System.out.printf("║  👥 Max Clients: %-4d                                                      ║%n", ServerConfig.MAX_CLIENTS);
+        System.out.printf("║  🕒 Started: %s                                                       ║%n", timestamp);
+        System.out.println("║                                                                                  ║");
+        System.out.println("║                        🎧 Ready for connections! 🎧                             ║");
+        System.out.println("╚══════════════════════════════════════════════════════════════════════════════════╝");
+        System.out.println();
+        System.out.println("📋 SERVER LOG:");
+        System.out.println("─".repeat(84));
+    }
+
+    /**
+     * Show client connected
+     */
+    private void showClientConnected(String clientAddress) {
+        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
+        System.out.printf("[%s] 🔗 Client connected: %s%n", timestamp, clientAddress);
+    }
+
+    /**
+     * Show server start error
+     */
+    private void showServerStartError(String error) {
+        System.out.println("╔══════════════════════════════════════════════════════════════════════════════════╗");
+        System.out.println("║                              ❌ STARTUP FAILED                                   ║");
+        System.out.println("║                                                                                  ║");
+        System.out.printf("║  Error: %-72s ║%n", error.length() > 72 ? error.substring(0, 69) + "..." : error);
+        System.out.println("║                                                                                  ║");
+        System.out.println("║  Possible solutions:                                                            ║");
+        System.out.println("║  • Check if port is already in use                                              ║");
+        System.out.println("║  • Run with administrator privileges                                            ║");
+        System.out.println("║  • Change port in ServerConfig.java                                             ║");
+        System.out.println("╚══════════════════════════════════════════════════════════════════════════════════╝");
+    }
+
+    /**
+     * Show server interrupted
+     */
+    private void showServerInterrupted() {
+        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
+        System.out.printf("[%s] ⚠️  Server interrupted%n", timestamp);
+    }
+
+    /**
+     * Show connection error
+     */
+    private void showConnectionError() {
+        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
+        System.out.printf("[%s] ⚠️  Connection error occurred%n", timestamp);
+    }
+
+    /**
+     * Show unexpected error
+     */
+    private void showUnexpectedError() {
+        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
+        System.out.printf("[%s] ❌ Unexpected error in connection handling%n", timestamp);
+    }
+
+    /**
+     * Show shutdown initiated
+     */
+    private void showShutdownInitiated() {
+        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
+        System.out.println();
+        System.out.println("─".repeat(84));
+        System.out.printf("[%s] 🔄 Initiating graceful shutdown...%n", timestamp);
+    }
+
+    /**
+     * Show shutdown complete
+     */
+    private void showShutdownComplete() {
+        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
+        System.out.printf("[%s] ✅ Server shutdown completed%n", timestamp);
+        System.out.println();
+        System.out.println("╔══════════════════════════════════════════════════════════════════════════════════╗");
+        System.out.println("║                         🛑 MINI SPOTIFY SERVER OFFLINE                          ║");
+        System.out.println("║                                                                                  ║");
+        System.out.println("║                        Thank you for using MiniSpotify!                         ║");
+        System.out.println("╚══════════════════════════════════════════════════════════════════════════════════╝");
     }
 
     /**
