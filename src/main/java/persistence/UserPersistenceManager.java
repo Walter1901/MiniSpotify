@@ -14,12 +14,8 @@ import java.nio.file.StandardCopyOption;
 import java.util.*;
 
 /**
- * Manager for user data persistence using JSON format.
- * Implements data access layer with file-based storage.
- *
- * Follows SOLID principles:
- * - SRP: Single responsibility for user data persistence
- * - DIP: Provides abstraction for data storage (could be extended to database)
+ * Manager for user data persistence with case-insensitive consistency
+ * Handles JSON serialization/deserialization of user data with robust error handling
  */
 public class UserPersistenceManager {
 
@@ -30,28 +26,24 @@ public class UserPersistenceManager {
 
     /**
      * Load all users from JSON file
-     * Handles file creation, validation, and error recovery
-     * @return List of loaded users (empty list if no users or errors)
+     * Enhanced with better error handling and validation
      */
     public static List<User> loadUsers() {
         List<User> users = new ArrayList<>();
         File file = new File(USERS_FILE);
 
         try {
-            // Create empty file if it doesn't exist
             if (!file.exists()) {
                 createEmptyUsersFile();
                 return users;
             }
 
-            // Check if file is empty
             if (file.length() == 0) {
                 createEmptyUsersFile();
                 return users;
             }
 
             try (Reader reader = new FileReader(USERS_FILE)) {
-                // Parse and validate JSON structure
                 JsonElement rootElement = JsonParser.parseReader(reader);
 
                 if (rootElement == null || !rootElement.isJsonArray()) {
@@ -61,37 +53,33 @@ public class UserPersistenceManager {
 
                 JsonArray jsonArray = rootElement.getAsJsonArray();
 
-                // Configure Gson with custom adapters
                 GsonBuilder gsonBuilder = new GsonBuilder();
                 gsonBuilder.registerTypeAdapter(Playlist.class, new PlaylistAdapter());
                 Gson gson = gsonBuilder.create();
 
-                // Process each user in the JSON array
                 for (JsonElement element : jsonArray) {
                     try {
                         JsonObject obj = element.getAsJsonObject();
 
-                        // Validate required fields
                         if (obj.get("username") == null || obj.get("passwordHash") == null ||
                                 obj.get("accountType") == null) {
-                            continue; // Skip invalid entries
+                            continue;
                         }
 
                         String username = obj.get("username").getAsString();
                         String passwordHash = obj.get("passwordHash").getAsString();
                         String accountType = obj.get("accountType").getAsString();
 
-                        // Create appropriate user type using Factory pattern
                         User user;
                         if ("free".equalsIgnoreCase(accountType)) {
                             user = new FreeUser(username, passwordHash);
                         } else if ("premium".equalsIgnoreCase(accountType)) {
                             user = new PremiumUser(username, passwordHash);
                         } else {
-                            continue; // Skip unknown account types
+                            continue;
                         }
 
-                        // Load playlists if present
+                        // Load playlists
                         if (obj.has("playlists") && obj.get("playlists").isJsonArray()) {
                             JsonArray playlistsArray = obj.getAsJsonArray("playlists");
                             for (JsonElement playlistElement : playlistsArray) {
@@ -104,7 +92,7 @@ public class UserPersistenceManager {
                             }
                         }
 
-                        // Load followed users (store for later resolution)
+                        // Load followed users
                         if (obj.has("followedUsers") && obj.get("followedUsers").isJsonArray()) {
                             JsonArray followedArray = obj.getAsJsonArray("followedUsers");
                             List<String> followedUsernames = new ArrayList<>();
@@ -126,8 +114,8 @@ public class UserPersistenceManager {
                     }
                 }
 
-                // Resolve followed user references
-                resolveFollowedUsers(users);
+                // Robust followed users resolution
+                resolveFollowedUsersRobust(users);
 
             }
         } catch (IOException | JsonSyntaxException e) {
@@ -138,22 +126,29 @@ public class UserPersistenceManager {
     }
 
     /**
-     * Resolve followed user references after all users are loaded
-     * @param users List of all loaded users
+     * Resolve followed user references with case-insensitive matching
+     * Enhanced validation and error handling
      */
-    private static void resolveFollowedUsers(List<User> users) {
+    private static void resolveFollowedUsersRobust(List<User> users) {
         for (Map.Entry<User, List<String>> entry : followedUsersMap.entrySet()) {
             User follower = entry.getKey();
             for (String username : entry.getValue()) {
-                for (User potentialFollowed : users) {
-                    if (potentialFollowed.getUsername().equals(username)) {
-                        follower.follow(potentialFollowed);
-                        break;
-                    }
+                // Case-insensitive search and validation
+                User potentialFollowed = users.stream()
+                        .filter(u -> u.getUsername().equalsIgnoreCase(username))
+                        .findFirst()
+                        .orElse(null);
+
+                if (potentialFollowed != null && !potentialFollowed.equals(follower)) {
+                    follower.follow(potentialFollowed);
+                    System.out.println("DEBUG: Resolved follow relationship: " +
+                            follower.getUsername() + " -> " + potentialFollowed.getUsername());
+                } else if (potentialFollowed == null) {
+                    System.out.println("WARNING: Could not resolve followed user: " + username);
                 }
             }
         }
-        followedUsersMap.clear(); // Clean up temporary storage
+        followedUsersMap.clear();
     }
 
     /**
@@ -169,17 +164,13 @@ public class UserPersistenceManager {
 
     /**
      * Save all users to JSON file with atomic write operation
-     * @param users List of users to save
      */
     public static void saveUsers(List<User> users) {
-        // Use temporary file for atomic write operation
         File tempFile = new File(USERS_FILE + ".tmp");
         File originalFile = new File(USERS_FILE);
 
         try {
-            // Write to temporary file first
             try (Writer writer = new FileWriter(tempFile)) {
-                // Configure Gson with custom adapters
                 GsonBuilder gsonBuilder = new GsonBuilder().setPrettyPrinting();
                 gsonBuilder.registerTypeAdapter(Playlist.class, new PlaylistAdapter());
                 gsonBuilder.registerTypeAdapter(CollaborativePlaylist.class, new PlaylistAdapter());
@@ -198,7 +189,6 @@ public class UserPersistenceManager {
                     if (!user.getPlaylists().isEmpty()) {
                         JsonArray playlistsArray = new JsonArray();
                         for (Playlist playlist : user.getPlaylists()) {
-                            // Skip invalid playlists
                             if ("LOGIN_SUCCESS".equals(playlist.getName())) {
                                 continue;
                             }
@@ -213,7 +203,9 @@ public class UserPersistenceManager {
                     if (!user.getFollowedUsers().isEmpty()) {
                         JsonArray followedArray = new JsonArray();
                         for (User followed : user.getFollowedUsers()) {
-                            followedArray.add(followed.getUsername());
+                            if (followed != null && followed.getUsername() != null) {
+                                followedArray.add(followed.getUsername());
+                            }
                         }
                         obj.add("followedUsers", followedArray);
                     }
@@ -225,15 +217,13 @@ public class UserPersistenceManager {
                 writer.flush();
             }
 
-            // Atomic replacement - only if temp file was written successfully
+            // Atomic replacement
             if (tempFile.exists() && tempFile.length() > 0) {
-                // Create backup of original file
                 File backupFile = new File(USERS_FILE + ".bak");
                 if (originalFile.exists()) {
                     Files.copy(originalFile.toPath(), backupFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
                 }
 
-                // Replace original with temp file
                 Files.move(tempFile.toPath(), originalFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
             } else {
                 throw new IOException("Failed to write temporary file or file is empty");
@@ -250,7 +240,6 @@ public class UserPersistenceManager {
                 }
             }
 
-            // Clean up temp file
             if (tempFile.exists()) {
                 tempFile.delete();
             }
@@ -258,18 +247,17 @@ public class UserPersistenceManager {
     }
 
     /**
-     * Add a single user and save immediately with retry mechanism
-     * @param user User to add
+     * Add user with case-insensitive duplicate check
      */
     public static void addUser(User user) {
         List<User> users = loadUsers();
 
-        // Check if user already exists (avoid duplicates)
+        // Case-insensitive duplicate check
         boolean exists = users.stream()
                 .anyMatch(u -> u.getUsername().equalsIgnoreCase(user.getUsername()));
 
         if (exists) {
-            System.out.println("DEBUG: User already exists, updating instead: " + user.getUsername());
+            System.out.println("DEBUG: User already exists (case-insensitive), updating instead: " + user.getUsername());
             updateUser(user);
             return;
         }
@@ -291,7 +279,7 @@ public class UserPersistenceManager {
                 System.out.println("DEBUG: Save attempt " + attempts + " failed: " + e.getMessage());
                 if (attempts < maxAttempts) {
                     try {
-                        Thread.sleep(100); // Wait 100ms before retry
+                        Thread.sleep(100);
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
                         break;
@@ -306,15 +294,17 @@ public class UserPersistenceManager {
     }
 
     /**
-     * Get a user by username with better error handling
-     * @param username Username to search for
-     * @return User if found, null otherwise
+     * Get user by username with case-insensitive search and better error handling
      */
     public static User getUserByUsername(String username) {
+        if (username == null || username.trim().isEmpty()) {
+            return null;
+        }
+
         try {
             List<User> users = loadUsers();
             return users.stream()
-                    .filter(u -> u.getUsername().equalsIgnoreCase(username)) // Case insensitive
+                    .filter(u -> u.getUsername().equalsIgnoreCase(username.trim()))
                     .findFirst()
                     .orElse(null);
         } catch (Exception e) {
@@ -324,35 +314,42 @@ public class UserPersistenceManager {
     }
 
     /**
-     * Check if a username already exists
-     * @param username Username to check
-     * @return true if user exists, false otherwise
+     * Check if username exists with case-insensitive comparison
      */
     public static boolean doesUserExist(String username) {
+        if (username == null || username.trim().isEmpty()) {
+            return false;
+        }
+
         List<User> users = loadUsers();
-        return users.stream().anyMatch(u -> u.getUsername().equalsIgnoreCase(username));
+        return users.stream()
+                .anyMatch(u -> u.getUsername().equalsIgnoreCase(username.trim()));
     }
 
     /**
-     * Authenticate user by username and password
-     * @param username Username to authenticate
-     * @param inputPasswordHash Hashed password to verify
-     * @return true if authentication successful, false otherwise
+     * Authenticate user with case-insensitive username
      */
     public static boolean authenticate(String username, String inputPasswordHash) {
+        if (username == null || inputPasswordHash == null) {
+            return false;
+        }
+
         return loadUsers().stream()
-                .anyMatch(u -> u.getUsername().equals(username) &&
+                .anyMatch(u -> u.getUsername().equalsIgnoreCase(username.trim()) &&
                         u.getPasswordHash().equals(inputPasswordHash));
     }
 
     /**
-     * Update an existing user's data
-     * @param updatedUser User with updated information
+     * Update user with case-insensitive search
      */
     public static void updateUser(User updatedUser) {
+        if (updatedUser == null || updatedUser.getUsername() == null) {
+            return;
+        }
+
         List<User> users = loadUsers();
         for (int i = 0; i < users.size(); i++) {
-            if (users.get(i).getUsername().equals(updatedUser.getUsername())) {
+            if (users.get(i).getUsername().equalsIgnoreCase(updatedUser.getUsername())) {
                 users.set(i, updatedUser);
                 break;
             }
@@ -360,25 +357,86 @@ public class UserPersistenceManager {
         saveUsers(users);
     }
 
+    /**
+     * Clean up orphaned followed users
+     * Removes references to users that no longer exist
+     */
+    public static void cleanupOrphanedFollows() {
+        List<User> users = loadUsers();
+        boolean changesMade = false;
+
+        for (User user : users) {
+            List<User> validFollows = new ArrayList<>();
+
+            for (User followed : user.getFollowedUsers()) {
+                // Check if followed user still exists
+                boolean stillExists = users.stream()
+                        .anyMatch(u -> u.getUsername().equalsIgnoreCase(followed.getUsername()));
+
+                if (stillExists) {
+                    validFollows.add(followed);
+                } else {
+                    System.out.println("DEBUG: Removing orphaned follow: " +
+                            user.getUsername() + " -> " + followed.getUsername());
+                    changesMade = true;
+                }
+            }
+
+            if (validFollows.size() != user.getFollowedUsers().size()) {
+                user.getFollowedUsers().clear();
+                user.getFollowedUsers().addAll(validFollows);
+            }
+        }
+
+        if (changesMade) {
+            saveUsers(users);
+            System.out.println("DEBUG: Cleaned up orphaned follows");
+        }
+    }
 
     /**
      * Clean up invalid playlists for a user
-     * @param user User to clean up
      */
     public static void cleanupInvalidPlaylists(User user) {
         if (user != null) {
             List<Playlist> validPlaylists = new ArrayList<>();
             for (Playlist p : user.getPlaylists()) {
-                if (!"LOGIN_SUCCESS".equals(p.getName())) {
+                if (!"LOGIN_SUCCESS".equals(p.getName()) && p.getName() != null) {
                     validPlaylists.add(p);
                 }
             }
 
-            // Only update if something was removed
             if (validPlaylists.size() < user.getPlaylists().size()) {
                 user.setPlaylists(validPlaylists);
                 updateUser(user);
+                System.out.println("DEBUG: Cleaned up invalid playlists for user: " + user.getUsername());
             }
+        }
+    }
+
+    /**
+     * Debug method to verify data consistency
+     */
+    public static void debugUserData() {
+        try {
+            List<User> users = loadUsers();
+            System.out.println("=== USER DATA DEBUG ===");
+
+            for (User user : users) {
+                System.out.println("User: " + user.getUsername() + " (" + user.getAccountType() + ")");
+                System.out.println("  Playlists: " + user.getPlaylists().size());
+                System.out.println("  Following: " + user.getFollowedUsers().size());
+
+                for (User followed : user.getFollowedUsers()) {
+                    System.out.println("    -> " + followed.getUsername());
+                }
+
+                System.out.println("  Shares publicly: " + user.arePlaylistsSharedPublicly());
+                System.out.println();
+            }
+
+        } catch (Exception e) {
+            System.err.println("DEBUG ERROR: " + e.getMessage());
         }
     }
 }

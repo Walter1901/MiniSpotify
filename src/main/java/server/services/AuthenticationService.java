@@ -13,7 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 /**
- * Service for handling user authentication - FIXED VERSION
+ * Service for handling user authentication with enhanced security and reliability
  */
 public class AuthenticationService {
 
@@ -25,7 +25,7 @@ public class AuthenticationService {
     }
 
     /**
-     * ENHANCED: Handle user login with brute force protection and better error handling
+     * Handle user login with robust error handling and security measures
      */
     public LoginResult login(String username, String password) {
         try {
@@ -33,73 +33,49 @@ public class AuthenticationService {
                 return new LoginResult(false, "Invalid credentials format", null);
             }
 
-            // Normalize username (case insensitive)
-            username = username.trim();
+            // Consistent normalization for all username operations
+            String normalizedUsername = username.trim();
+            String lookupKey = normalizedUsername.toLowerCase();
 
-            // Check brute force protection
-            AttemptTracker tracker = loginAttempts.computeIfAbsent(username.toLowerCase(), k -> new AttemptTracker());
+            // Check brute force protection with normalized key
+            AttemptTracker tracker = loginAttempts.computeIfAbsent(lookupKey, k -> new AttemptTracker());
 
             if (tracker.isLocked()) {
                 long remainingSeconds = tracker.getRemainingLockoutSeconds();
-                logger.accept("🚫 Blocked login attempt for locked account: " + username);
+                logger.accept("🚫 Blocked login attempt for locked account: " + normalizedUsername);
                 return new LoginResult(false,
                         "Account temporarily locked. Try again in " + remainingSeconds + " seconds", null);
             }
 
-            // Find user with retry mechanism
-            User matchingUser = null;
-            int attempts = 0;
-            while (matchingUser == null && attempts < 3) {
-                try {
-                    List<User> users = UserPersistenceManager.loadUsers();
-                    String finalUsername = username;
-                    matchingUser = users.stream()
-                            .filter(u -> u.getUsername().equalsIgnoreCase(finalUsername))
-                            .findFirst()
-                            .orElse(null);
-                    break;
-                } catch (Exception e) {
-                    attempts++;
-                    if (attempts < 3) {
-                        try { Thread.sleep(50); } catch (InterruptedException ie) { break; }
-                    }
-                }
-            }
+            // Robust user loading with retry and synchronization
+            User matchingUser = findUserWithRetry(normalizedUsername);
 
             if (matchingUser != null) {
                 boolean passwordValid = false;
                 try {
                     passwordValid = SecurePasswordHasher.checkPassword(password, matchingUser.getPasswordHash());
                 } catch (Exception e) {
-                    logger.accept("💥 Password verification error for " + username + ": " + e.getMessage());
+                    logger.accept("💥 Password verification error for " + normalizedUsername + ": " + e.getMessage());
                     return new LoginResult(false, "Server error during password verification", null);
                 }
 
                 if (passwordValid) {
-                    // Successful login
+                    // Immediate tracker reset
                     tracker.recordSuccessfulLogin();
 
                     // Migrate password if needed
-                    if (SecurePasswordHasher.needsMigration(matchingUser.getPasswordHash())) {
-                        try {
-                            String newHash = SecurePasswordHasher.hashPassword(password);
-                            matchingUser.setPasswordHash(newHash);
-                            UserPersistenceManager.updateUser(matchingUser);
-                            logger.accept("🔄 Password migrated for user: " + username);
-                        } catch (Exception e) {
-                            logger.accept("⚠️ Password migration failed for " + username + ": " + e.getMessage());
-                            // Continue anyway - login should still work
-                        }
+                    migratePasswordIfNeeded(matchingUser, password, normalizedUsername);
+
+                    // Enhanced playlist cleanup with error handling
+                    cleanupUserPlaylists(matchingUser, normalizedUsername);
+
+                    // Reload user after modifications to ensure consistency
+                    User refreshedUser = UserPersistenceManager.getUserByUsername(normalizedUsername);
+                    if (refreshedUser != null) {
+                        matchingUser = refreshedUser;
                     }
 
-                    try {
-                        UserPersistenceManager.cleanupInvalidPlaylists(matchingUser);
-                    } catch (Exception e) {
-                        logger.accept("⚠️ Playlist cleanup failed for " + username + ": " + e.getMessage());
-                        // Continue anyway
-                    }
-
-                    logger.accept("👤 User logged in: " + username);
+                    logger.accept("👤 User logged in: " + normalizedUsername);
                     return new LoginResult(true, "Login successful", matchingUser);
 
                 } else {
@@ -111,14 +87,14 @@ public class AuthenticationService {
                             ? "Incorrect credentials. " + remaining + " attempts remaining"
                             : "Too many failed attempts. Account locked for 15 minutes";
 
-                    logger.accept("❌ Failed login attempt for: " + username +
+                    logger.accept("❌ Failed login attempt for: " + normalizedUsername +
                             " (attempts: " + tracker.getAttemptCount() + ")");
                     return new LoginResult(false, message, null);
                 }
             } else {
                 // User not found
                 tracker.recordFailedAttempt();
-                logger.accept("❌ Login attempt for non-existent user: " + username);
+                logger.accept("❌ Login attempt for non-existent user: " + normalizedUsername);
                 return new LoginResult(false, "Incorrect credentials", null);
             }
 
@@ -130,7 +106,79 @@ public class AuthenticationService {
     }
 
     /**
-     * FIXED: Handle user registration and return the created user
+     * Robust user search with retry and proper error handling
+     * Implements progressive backoff on failures
+     */
+    private User findUserWithRetry(String username) {
+        int maxAttempts = 3;
+        int attempts = 0;
+
+        while (attempts < maxAttempts) {
+            try {
+                synchronized (UserPersistenceManager.class) {
+                    List<User> users = UserPersistenceManager.loadUsers();
+
+                    // Case-insensitive search but preserve original username
+                    return users.stream()
+                            .filter(u -> u.getUsername().equalsIgnoreCase(username))
+                            .findFirst()
+                            .orElse(null);
+                }
+            } catch (Exception e) {
+                attempts++;
+                logger.accept("⚠️ User loading attempt " + attempts + " failed: " + e.getMessage());
+
+                if (attempts < maxAttempts) {
+                    try {
+                        Thread.sleep(100 * attempts); // Progressive backoff
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Secure password migration
+     */
+    private void migratePasswordIfNeeded(User user, String password, String username) {
+        try {
+            if (SecurePasswordHasher.needsMigration(user.getPasswordHash())) {
+                String newHash = SecurePasswordHasher.hashPassword(password);
+                user.setPasswordHash(newHash);
+
+                synchronized (UserPersistenceManager.class) {
+                    UserPersistenceManager.updateUser(user);
+                }
+
+                logger.accept("🔄 Password migrated for user: " + username);
+            }
+        } catch (Exception e) {
+            logger.accept("⚠️ Password migration failed for " + username + ": " + e.getMessage());
+            // Continue anyway - login should still work
+        }
+    }
+
+    /**
+     * Secure playlist cleanup
+     */
+    private void cleanupUserPlaylists(User user, String username) {
+        try {
+            synchronized (UserPersistenceManager.class) {
+                UserPersistenceManager.cleanupInvalidPlaylists(user);
+            }
+        } catch (Exception e) {
+            logger.accept("⚠️ Playlist cleanup failed for " + username + ": " + e.getMessage());
+            // Continue anyway
+        }
+    }
+
+    /**
+     * Enhanced registration with improved error handling
      */
     public RegistrationResult register(String username, String password, String accountType) {
         try {
@@ -139,44 +187,61 @@ public class AuthenticationService {
                 return new RegistrationResult(false, "Invalid registration data", null);
             }
 
-            // Check if user already exists
-            if (UserPersistenceManager.doesUserExist(username)) {
-                return new RegistrationResult(false, "Username already exists", null);
+            // Consistent normalization
+            String normalizedUsername = username.trim();
+
+            // Thread-safe existence check
+            synchronized (UserPersistenceManager.class) {
+                if (UserPersistenceManager.doesUserExist(normalizedUsername)) {
+                    return new RegistrationResult(false, "Username already exists", null);
+                }
+
+                // Validate password strength
+                if (password.length() < 6) {
+                    return new RegistrationResult(false, "Password must be at least 6 characters", null);
+                }
+
+                // Create user with SECURE hash
+                String hashedPassword = SecurePasswordHasher.hashPassword(password);
+                User newUser;
+
+                if ("free".equalsIgnoreCase(accountType)) {
+                    newUser = new FreeUser(normalizedUsername, hashedPassword);
+                } else if ("premium".equalsIgnoreCase(accountType)) {
+                    newUser = new PremiumUser(normalizedUsername, hashedPassword);
+                } else {
+                    return new RegistrationResult(false, "Invalid account type", null);
+                }
+
+                // Thread-safe save
+                UserPersistenceManager.addUser(newUser);
+
+                // Save verification with retry
+                User savedUser = null;
+                int attempts = 0;
+                while (savedUser == null && attempts < 3) {
+                    savedUser = UserPersistenceManager.getUserByUsername(normalizedUsername);
+                    if (savedUser == null) {
+                        attempts++;
+                        try {
+                            Thread.sleep(50);
+                        } catch (InterruptedException e) {
+                            break;
+                        }
+                    }
+                }
+
+                if (savedUser == null) {
+                    return new RegistrationResult(false, "Failed to save user - please try again", null);
+                }
+
+                logger.accept("👤 User created: " + normalizedUsername + " (" + accountType + ")");
+                return new RegistrationResult(true, "Account created successfully", savedUser);
             }
-
-            // Validate password strength
-            if (password.length() < 6) {
-                return new RegistrationResult(false, "Password must be at least 6 characters", null);
-            }
-
-            // Create user with SECURE hash
-            String hashedPassword = SecurePasswordHasher.hashPassword(password);
-            User newUser;
-
-            if ("free".equalsIgnoreCase(accountType)) {
-                newUser = new FreeUser(username, hashedPassword);
-            } else if ("premium".equalsIgnoreCase(accountType)) {
-                newUser = new PremiumUser(username, hashedPassword);
-            } else {
-                return new RegistrationResult(false, "Invalid account type", null);
-            }
-
-            // Save user to persistence
-            UserPersistenceManager.addUser(newUser);
-
-            // IMPORTANT: Reload the user to ensure it's properly saved
-            User savedUser = UserPersistenceManager.getUserByUsername(username);
-            if (savedUser == null) {
-                return new RegistrationResult(false, "Failed to save user", null);
-            }
-
-            logger.accept("👤 User created: " + username + " (" + accountType + ")");
-
-            // FIXED: Return the saved user
-            return new RegistrationResult(true, "Account created successfully", savedUser);
 
         } catch (Exception e) {
             logger.accept("💥 Registration error: " + e.getMessage());
+            e.printStackTrace();
             return new RegistrationResult(false, "Server error during registration", null);
         }
     }
@@ -206,7 +271,7 @@ public class AuthenticationService {
     public static class RegistrationResult {
         public final boolean success;
         public final String message;
-        public final User user; // FIXED: Return the created user
+        public final User user;
 
         public RegistrationResult(boolean success, String message, User user) {
             this.success = success;

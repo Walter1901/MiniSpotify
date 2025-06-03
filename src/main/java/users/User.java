@@ -32,41 +32,140 @@ public abstract class User {
 
     // Social features implementation
 
+    // ===============================
+    // SOCIAL FEATURES - ALL METHODS CORRECTED
+    // ===============================
+
     /**
-     * Follow another user for social features
-     * @param user User to follow
+     * Follow another user with robust validation
      */
     public void follow(User user) {
-        if (user != null && !followedUsers.contains(user) && !user.equals(this)) {
-            followedUsers.add(user);
+        if (user != null && !user.equals(this)) {
+            // Case-insensitive duplicate check
+            boolean alreadyFollowing = followedUsers.stream()
+                    .anyMatch(u -> u.getUsername().equalsIgnoreCase(user.getUsername()));
+
+            if (!alreadyFollowing) {
+                followedUsers.add(user);
+                System.out.println("DEBUG: " + this.username + " now follows " + user.getUsername());
+            } else {
+                System.out.println("DEBUG: " + this.username + " already follows " + user.getUsername());
+            }
         }
     }
 
     /**
-     * Unfollow a user
-     * @param user User to unfollow
+     * Unfollow a user with case-insensitive search
      */
     public void unfollow(User user) {
-        followedUsers.remove(user);
+        if (user == null) return;
+
+        // Case-insensitive removal
+        User toRemove = followedUsers.stream()
+                .filter(u -> u.getUsername().equalsIgnoreCase(user.getUsername()))
+                .findFirst()
+                .orElse(null);
+
+        if (toRemove != null) {
+            followedUsers.remove(toRemove);
+            System.out.println("DEBUG: " + this.username + " unfollowed " + user.getUsername());
+        }
     }
 
     /**
-     * Check if following a specific user
-     * @param user User to check
-     * @return true if following, false otherwise
+     * Check if following with case-insensitive comparison
      */
     public boolean isFollowing(User user) {
-        return followedUsers.contains(user);
+        if (user == null) return false;
+
+        return followedUsers.stream()
+                .anyMatch(u -> u.getUsername().equalsIgnoreCase(user.getUsername()));
     }
 
     /**
-     * Check if following a user by username
-     * @param username Username to check
-     * @return true if following, false otherwise
+     * Check if following by username with case-insensitive comparison
      */
     public boolean isFollowing(String username) {
+        if (username == null || username.trim().isEmpty()) return false;
+
         return followedUsers.stream()
-                .anyMatch(user -> user.getUsername().equals(username));
+                .anyMatch(user -> user.getUsername().equalsIgnoreCase(username.trim()));
+    }
+
+    /**
+     * Get playlist by name with case-insensitive search
+     */
+    public Playlist getPlaylistByName(String name) {
+        if (name == null || name.trim().isEmpty()) return null;
+
+        return playlists.stream()
+                .filter(p -> p.getName().equalsIgnoreCase(name.trim()))
+                .findFirst()
+                .orElse(null);
+    }
+
+    /**
+     * Remove playlist with case-insensitive matching
+     */
+    public boolean removePlaylist(String playlistName) {
+        if (playlistName == null || playlistName.trim().isEmpty()) {
+            return false;
+        }
+
+        for (int i = 0; i < playlists.size(); i++) {
+            if (playlists.get(i).getName().equalsIgnoreCase(playlistName.trim())) {
+                playlists.remove(i);
+                System.out.println("DEBUG: Removed playlist '" + playlistName + "' from user " + username);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Validate and clean followed users list
+     */
+    public void validateFollowedUsers() {
+        List<User> validUsers = new ArrayList<>();
+
+        for (User user : followedUsers) {
+            if (user != null && user.getUsername() != null && !user.getUsername().trim().isEmpty()) {
+                validUsers.add(user);
+            }
+        }
+
+        if (validUsers.size() != followedUsers.size()) {
+            System.out.println("DEBUG: Cleaned " + (followedUsers.size() - validUsers.size()) +
+                    " invalid followed users for " + username);
+            followedUsers = validUsers;
+        }
+    }
+
+    /**
+     * Get followed users count for debugging
+     */
+    public int getFollowedUsersCount() {
+        return followedUsers.size();
+    }
+
+    /**
+     * Debug method for social features
+     */
+    public void debugSocialFeatures() {
+        System.out.println("=== SOCIAL DEBUG for " + username + " ===");
+        System.out.println("Following " + followedUsers.size() + " users:");
+
+        for (User user : followedUsers) {
+            if (user != null) {
+                System.out.println("  -> " + user.getUsername());
+            } else {
+                System.out.println("  -> [NULL USER]");
+            }
+        }
+
+        System.out.println("Shares playlists publicly: " + sharePlaylistsPublicly);
+        System.out.println("Has " + playlists.size() + " playlists");
     }
 
     /**
@@ -166,37 +265,6 @@ public abstract class User {
         }
     }
 
-    /**
-     * Get playlist by name
-     * @param name Playlist name to search for
-     * @return Playlist if found, null otherwise
-     */
-    public Playlist getPlaylistByName(String name) {
-        return playlists.stream()
-                .filter(p -> p.getName().equalsIgnoreCase(name))
-                .findFirst()
-                .orElse(null);
-    }
-
-    /**
-     * Remove a playlist by name
-     * @param playlistName Name of playlist to remove
-     * @return true if removed, false if not found
-     */
-    public boolean removePlaylist(String playlistName) {
-        if (playlistName == null || playlistName.isEmpty()) {
-            return false;
-        }
-
-        for (int i = 0; i < playlists.size(); i++) {
-            if (playlists.get(i).getName().equalsIgnoreCase(playlistName)) {
-                playlists.remove(i);
-                return true;
-            }
-        }
-
-        return false;
-    }
 
     /**
      * Equality based on username (unique identifier)

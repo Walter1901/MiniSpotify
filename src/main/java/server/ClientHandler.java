@@ -861,11 +861,11 @@ public class ClientHandler implements Runnable {
     }
 
     // ===============================
-    // SOCIAL FEATURES COMMANDS (MAINTAINED FROM ORIGINAL)
+    // SOCIAL FEATURES COMMANDS
     // ===============================
 
     /**
-     * Follow user command with debugging
+     * Follow user command with proper debugging and correct messages
      */
     private ServerCommand followUserCommand(String args) {
         return out -> {
@@ -875,34 +875,78 @@ public class ClientHandler implements Runnable {
             }
 
             String usernameToFollow = args.trim();
+            AppLogger.debug("🔍 Follow request: '{}' wants to follow '{}'", loggedInUser.getUsername(), usernameToFollow);
 
-            if (loggedInUser.getUsername().equals(usernameToFollow)) {
+            // Case-insensitive self-follow check
+            if (loggedInUser.getUsername().equalsIgnoreCase(usernameToFollow)) {
                 out.println("ERROR: You cannot follow yourself");
                 return false;
             }
 
-            User userToFollow = UserPersistenceManager.getUserByUsername(usernameToFollow);
+            // Case-insensitive user search
+            User userToFollow = null;
+            try {
+                synchronized (UserPersistenceManager.class) {
+                    List<User> allUsers = UserPersistenceManager.loadUsers();
+                    userToFollow = allUsers.stream()
+                            .filter(u -> u.getUsername().equalsIgnoreCase(usernameToFollow))
+                            .findFirst()
+                            .orElse(null);
+                }
+            } catch (Exception e) {
+                AppLogger.error("Error loading users for follow operation", e);
+                out.println("ERROR: Server error while searching for user");
+                return false;
+            }
+
             if (userToFollow == null) {
+                AppLogger.debug("❌ User not found for follow: '{}'", usernameToFollow);
                 out.println("ERROR: User not found");
                 return false;
             }
 
-            if (loggedInUser.isFollowing(usernameToFollow)) {
+            AppLogger.debug("✅ Found user to follow: '{}'", userToFollow.getUsername());
+
+            // More robust follow status check
+            User finalUserToFollow = userToFollow;
+            boolean alreadyFollowing = loggedInUser.getFollowedUsers().stream()
+                    .anyMatch(u -> u.getUsername().equalsIgnoreCase(finalUserToFollow.getUsername()));
+
+            if (alreadyFollowing) {
                 out.println("INFO: You are already following this user");
                 return true;
             }
 
-            loggedInUser.follow(userToFollow);
-            UserPersistenceManager.updateUser(loggedInUser);
+            try {
+                // Follow with synchronization
+                synchronized (UserPersistenceManager.class) {
+                    loggedInUser.follow(userToFollow);
+                    UserPersistenceManager.updateUser(loggedInUser);
 
-            out.println("SUCCESS: You are now following " + usernameToFollow);
-            AppLogger.userActivity(loggedInUser.getUsername(), "USER_FOLLOWED", usernameToFollow);
-            return true;
+                    // Reload to verify save
+                    User updatedUser = UserPersistenceManager.getUserByUsername(loggedInUser.getUsername());
+                    if (updatedUser != null) {
+                        loggedInUser = updatedUser;
+                    }
+                }
+
+                // Correct success message
+                out.println("SUCCESS: You are now following " + userToFollow.getUsername());
+                AppLogger.userActivity(loggedInUser.getUsername(), "USER_FOLLOWED", userToFollow.getUsername());
+                AppLogger.debug("✅ Follow successful: '{}' now follows '{}'",
+                        loggedInUser.getUsername(), userToFollow.getUsername());
+                return true;
+
+            } catch (Exception e) {
+                AppLogger.error("Error during follow operation", e);
+                out.println("ERROR: Server error during follow operation");
+                return false;
+            }
         };
     }
 
     /**
-     * Unfollow user command
+     * Unfollow user command with improved error handling
      */
     private ServerCommand unfollowUserCommand(String args) {
         return out -> {
@@ -912,29 +956,46 @@ public class ClientHandler implements Runnable {
             }
 
             String usernameToUnfollow = args.trim();
-            User userToUnfollow = UserPersistenceManager.getUserByUsername(usernameToUnfollow);
+            AppLogger.debug("🔍 Unfollow request: '{}' wants to unfollow '{}'",
+                    loggedInUser.getUsername(), usernameToUnfollow);
+
+            // Case-insensitive search in followed users list
+            User userToUnfollow = loggedInUser.getFollowedUsers().stream()
+                    .filter(u -> u.getUsername().equalsIgnoreCase(usernameToUnfollow))
+                    .findFirst()
+                    .orElse(null);
 
             if (userToUnfollow == null) {
-                out.println("ERROR: User not found");
-                return false;
-            }
-
-            if (!loggedInUser.isFollowing(usernameToUnfollow)) {
                 out.println("INFO: You are not following this user");
                 return true;
             }
 
-            loggedInUser.unfollow(userToUnfollow);
-            UserPersistenceManager.updateUser(loggedInUser);
+            try {
+                synchronized (UserPersistenceManager.class) {
+                    loggedInUser.unfollow(userToUnfollow);
+                    UserPersistenceManager.updateUser(loggedInUser);
 
-            out.println("SUCCESS: You are no longer following " + usernameToUnfollow);
-            AppLogger.userActivity(loggedInUser.getUsername(), "USER_UNFOLLOWED", usernameToUnfollow);
-            return true;
+                    // Reload to verify
+                    User updatedUser = UserPersistenceManager.getUserByUsername(loggedInUser.getUsername());
+                    if (updatedUser != null) {
+                        loggedInUser = updatedUser;
+                    }
+                }
+
+                out.println("SUCCESS: You are no longer following " + userToUnfollow.getUsername());
+                AppLogger.userActivity(loggedInUser.getUsername(), "USER_UNFOLLOWED", userToUnfollow.getUsername());
+                return true;
+
+            } catch (Exception e) {
+                AppLogger.error("Error during unfollow operation", e);
+                out.println("ERROR: Server error during unfollow operation");
+                return false;
+            }
         };
     }
 
     /**
-     * Get followed users command
+     * Get followed users command with robust validation
      */
     private ServerCommand getFollowedUsersCommand(String args) {
         return out -> {
@@ -944,22 +1005,48 @@ public class ClientHandler implements Runnable {
                 return false;
             }
 
-            List<User> followedUsers = loggedInUser.getFollowedUsers();
-
-            // Send only usernames, not error messages
-            for (User user : followedUsers) {
-                if (user != null && user.getUsername() != null) {
-                    out.println(user.getUsername());
+            try {
+                // Reload user for fresh data
+                synchronized (UserPersistenceManager.class) {
+                    User freshUser = UserPersistenceManager.getUserByUsername(loggedInUser.getUsername());
+                    if (freshUser != null) {
+                        loggedInUser = freshUser;
+                    }
                 }
-            }
 
-            out.println("END");
-            return true;
+                List<User> followedUsers = loggedInUser.getFollowedUsers();
+                AppLogger.debug("📋 User '{}' has {} followed users",
+                        loggedInUser.getUsername(), followedUsers.size());
+
+                // Validation and cleanup of followed users
+                for (User user : followedUsers) {
+                    if (user != null && user.getUsername() != null && !user.getUsername().trim().isEmpty()) {
+                        // Verify user still exists
+                        User existingUser = UserPersistenceManager.getUserByUsername(user.getUsername());
+                        if (existingUser != null) {
+                            out.println(existingUser.getUsername());
+                            AppLogger.debug("📤 Sent followed user: '{}'", existingUser.getUsername());
+                        } else {
+                            AppLogger.warn("⚠️ Followed user no longer exists: '{}'", user.getUsername());
+                            // Note: Could cleanup here, but keeping to avoid concurrent modifications
+                        }
+                    }
+                }
+
+                out.println("END");
+                return true;
+
+            } catch (Exception e) {
+                AppLogger.error("Error getting followed users", e);
+                out.println("ERROR: Server error retrieving followed users");
+                out.println("END");
+                return false;
+            }
         };
     }
 
     /**
-     * Get shared playlists command
+     * Get shared playlists command with validation
      */
     private ServerCommand getSharedPlaylistsCommand(String args) {
         return out -> {
@@ -969,18 +1056,51 @@ public class ClientHandler implements Runnable {
                 return false;
             }
 
-            List<User> followedUsers = loggedInUser.getFollowedUsers();
-
-            for (User followedUser : followedUsers) {
-                if (followedUser.arePlaylistsSharedPublicly()) {
-                    for (Playlist playlist : followedUser.getPlaylists()) {
-                        out.println(playlist.getName() + "|" + followedUser.getUsername());
+            try {
+                // Reload user for fresh data
+                synchronized (UserPersistenceManager.class) {
+                    User freshUser = UserPersistenceManager.getUserByUsername(loggedInUser.getUsername());
+                    if (freshUser != null) {
+                        loggedInUser = freshUser;
                     }
                 }
-            }
 
-            out.println("END");
-            return true;
+                List<User> followedUsers = loggedInUser.getFollowedUsers();
+                AppLogger.debug("🔍 Checking shared playlists from {} followed users", followedUsers.size());
+
+                int playlistCount = 0;
+                for (User followedUser : followedUsers) {
+                    if (followedUser == null) continue;
+
+                    // Revalidate followed user
+                    User currentFollowedUser = UserPersistenceManager.getUserByUsername(followedUser.getUsername());
+                    if (currentFollowedUser == null) {
+                        AppLogger.debug("⚠️ Followed user no longer exists: '{}'", followedUser.getUsername());
+                        continue;
+                    }
+
+                    if (currentFollowedUser.arePlaylistsSharedPublicly()) {
+                        for (Playlist playlist : currentFollowedUser.getPlaylists()) {
+                            if (playlist != null && playlist.getName() != null) {
+                                out.println(playlist.getName() + "|" + currentFollowedUser.getUsername());
+                                playlistCount++;
+                                AppLogger.debug("📤 Sent shared playlist: '{}' by '{}'",
+                                        playlist.getName(), currentFollowedUser.getUsername());
+                            }
+                        }
+                    }
+                }
+
+                AppLogger.debug("✅ Sent {} shared playlists total", playlistCount);
+                out.println("END");
+                return true;
+
+            } catch (Exception e) {
+                AppLogger.error("Error getting shared playlists", e);
+                out.println("ERROR: Server error retrieving shared playlists");
+                out.println("END");
+                return false;
+            }
         };
     }
 
@@ -1005,39 +1125,69 @@ public class ClientHandler implements Runnable {
             String ownerUsername = parts[0];
             String playlistName = parts[1];
 
-            User owner = UserPersistenceManager.getUserByUsername(ownerUsername);
-            if (owner == null) {
-                out.println("ERROR: User not found");
+            try {
+                // Case-insensitive owner search
+                User owner = null;
+                synchronized (UserPersistenceManager.class) {
+                    List<User> allUsers = UserPersistenceManager.loadUsers();
+                    owner = allUsers.stream()
+                            .filter(u -> u.getUsername().equalsIgnoreCase(ownerUsername))
+                            .findFirst()
+                            .orElse(null);
+                }
+
+                if (owner == null) {
+                    out.println("ERROR: User not found");
+                    out.println("END");
+                    return false;
+                }
+
+                // Access permission check
+                User finalOwner = owner;
+                boolean canAccess = loggedInUser.getFollowedUsers().stream()
+                        .anyMatch(u -> u.getUsername().equalsIgnoreCase(finalOwner.getUsername()))
+                        || owner.arePlaylistsSharedPublicly();
+
+                if (!canAccess) {
+                    out.println("ERROR: You cannot access this playlist");
+                    out.println("END");
+                    return false;
+                }
+
+                // Case-insensitive playlist search
+                Playlist playlist = owner.getPlaylists().stream()
+                        .filter(p -> p.getName().equalsIgnoreCase(playlistName))
+                        .findFirst()
+                        .orElse(null);
+
+                if (playlist == null) {
+                    out.println("ERROR: Playlist not found");
+                    out.println("END");
+                    return false;
+                }
+
+                out.println("SUCCESS: Found playlist");
+
+                for (Song song : playlist.getSongs()) {
+                    if (song != null) {
+                        out.println(song.getTitle() + "|" +
+                                song.getArtist() + "|" +
+                                song.getAlbum() + "|" +
+                                song.getGenre() + "|" +
+                                song.getDuration() + "|" +
+                                (song.getFilePath() != null ? song.getFilePath() : ""));
+                    }
+                }
+
+                out.println("END");
+                return true;
+
+            } catch (Exception e) {
+                AppLogger.error("Error getting shared playlist songs", e);
+                out.println("ERROR: Server error retrieving playlist songs");
                 out.println("END");
                 return false;
             }
-
-            if (!loggedInUser.isFollowing(owner) && !owner.arePlaylistsSharedPublicly()) {
-                out.println("ERROR: You cannot access this playlist");
-                out.println("END");
-                return false;
-            }
-
-            Playlist playlist = owner.getPlaylistByName(playlistName);
-            if (playlist == null) {
-                out.println("ERROR: Playlist not found");
-                out.println("END");
-                return false;
-            }
-
-            out.println("SUCCESS: Found playlist");
-
-            for (Song song : playlist.getSongs()) {
-                out.println(song.getTitle() + "|" +
-                        song.getArtist() + "|" +
-                        song.getAlbum() + "|" +
-                        song.getGenre() + "|" +
-                        song.getDuration() + "|" +
-                        (song.getFilePath() != null ? song.getFilePath() : ""));
-            }
-
-            out.println("END");
-            return true;
         };
     }
 
