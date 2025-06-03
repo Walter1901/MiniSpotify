@@ -4,23 +4,19 @@ import javafx.application.Platform;
 import javafx.embed.swing.JFXPanel;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
-import javafx.util.Duration;
 
 import java.io.File;
 
 /**
- * Audio playback manager using JavaFX MediaPlayer
- * Supports REAL pause/resume functionality
+ * Stateless AudioPlayer with compatibility methods
+ * Provides methods needed by PlaybackService but state is managed by PlayerUI
  */
 public class AudioPlayer {
     private MediaPlayer mediaPlayer;
-    private String currentFile;
-    private boolean isPlaying = false;
-    private boolean isPaused = false;
     private boolean isInitialized = false;
 
     /**
-     * Initialize JavaFX toolkit (call once at startup)
+     * Constructor - Initialize JavaFX only
      */
     public AudioPlayer() {
         initializeJavaFX();
@@ -31,269 +27,156 @@ public class AudioPlayer {
      */
     private void initializeJavaFX() {
         if (!isInitialized) {
-            // Initialize JavaFX toolkit
-            new JFXPanel(); // This initializes JavaFX toolkit
+            new JFXPanel();
             isInitialized = true;
-            System.out.println("🎵 JavaFX Audio Player initialized");
+            System.out.println("🎵 Audio Player initialized");
         }
     }
 
     /**
-     * Plays an audio file
-     * @param filePath path to the file
+     * Play a file - NO state tracking, pure function
+     * @param filePath Path to audio file
      */
     public void play(String filePath) {
         Platform.runLater(() -> {
             try {
-                // Stop current playback if necessary
-                stop();
+                // Clean up previous player
+                if (mediaPlayer != null) {
+                    try {
+                        mediaPlayer.stop();
+                        mediaPlayer.dispose();
+                    } catch (Exception e) {
+                        // Ignore cleanup errors
+                    }
+                }
 
-                // Validate file path
-                if (filePath == null || filePath.contains("|")) {
-                    System.out.println("⚠️ Invalid file path: " + filePath);
+                // Validate file
+                if (filePath == null || filePath.isEmpty()) {
+                    System.out.println("⚠️ Invalid file path");
                     return;
                 }
 
-                // Check if file exists
                 File file = new File(filePath);
                 if (!file.exists()) {
-                    System.out.println("⚠️ File not found: " + filePath);
-                    System.out.println("⚠️ Absolute path: " + file.getAbsolutePath());
+                    System.out.println("⚠️ File not found: " + file.getName());
                     return;
                 }
 
-                // Create Media and MediaPlayer
-                String mediaUrl = file.toURI().toString();
-                Media media = new Media(mediaUrl);
+                // Create and start new player
+                Media media = new Media(file.toURI().toString());
                 mediaPlayer = new MediaPlayer(media);
 
-                // Set up event handlers
-                setupMediaPlayerListeners();
+                // Simple listeners - NO state updates
+                mediaPlayer.setOnReady(() -> {
+                    mediaPlayer.play();
+                    System.out.println("🎵 Started: " + file.getName());
+                });
 
-                // Store current file and play
-                currentFile = filePath;
-                mediaPlayer.play();
-                isPlaying = true;
-                isPaused = false;
+                mediaPlayer.setOnError(() -> {
+                    System.out.println("⚠️ Media error: " + file.getName());
+                });
 
-                System.out.println("🎵 Playing: " + file.getName());
+                mediaPlayer.setOnEndOfMedia(() -> {
+                    System.out.println("🎵 Ended: " + file.getName());
+                });
 
             } catch (Exception e) {
-                System.out.println("⚠️ Error playing file: " + e.getMessage());
-                e.printStackTrace();
-                isPlaying = false;
-                isPaused = false;
+                System.out.println("⚠️ Play error: " + e.getMessage());
             }
         });
     }
 
     /**
-     * Set up MediaPlayer event listeners
-     */
-    private void setupMediaPlayerListeners() {
-        // On ready
-        mediaPlayer.setOnReady(() -> {
-            System.out.println("🎵 Media ready - Duration: " +
-                    formatDuration(mediaPlayer.getTotalDuration()));
-        });
-
-        // On end of media
-        mediaPlayer.setOnEndOfMedia(() -> {
-            System.out.println("🎵 Playback completed");
-            isPlaying = false;
-            isPaused = false;
-        });
-
-        // On error
-        mediaPlayer.setOnError(() -> {
-            System.out.println("⚠️ Media error: " + mediaPlayer.getError().getMessage());
-            isPlaying = false;
-            isPaused = false;
-        });
-
-        // On status change
-        mediaPlayer.statusProperty().addListener((obs, oldStatus, newStatus) -> {
-            System.out.println("🎵 Status changed: " + oldStatus + " -> " + newStatus);
-        });
-    }
-
-    /**
-     * Pauses playback (REAL pause - maintains position)
+     * Pause - NO state tracking
      */
     public void pause() {
-        if (mediaPlayer != null && isPlaying && !isPaused) {
-            Platform.runLater(() -> {
+        Platform.runLater(() -> {
+            if (mediaPlayer != null) {
                 try {
-                    Duration currentTime = mediaPlayer.getCurrentTime();
                     mediaPlayer.pause();
-                    isPaused = true;
-                    isPlaying = false;
-
-                    System.out.println("⏸️ Paused at: " + formatDuration(currentTime));
+                    System.out.println("⏸️ Audio paused");
                 } catch (Exception e) {
-                    System.out.println("⚠️ Error during pause: " + e.getMessage());
+                    System.out.println("⚠️ Pause error: " + e.getMessage());
                 }
-            });
-        } else if (isPaused) {
-            System.out.println("⏸️ Already paused");
-        } else {
-            System.out.println("⚠️ No music playing to pause");
-        }
+            }
+        });
     }
 
     /**
-     * Resumes playback from pause point (REAL resume)
+     * Resume - NO state tracking
      */
     public void resume() {
-        if (mediaPlayer != null && isPaused) {
-            Platform.runLater(() -> {
+        Platform.runLater(() -> {
+            if (mediaPlayer != null) {
                 try {
-                    Duration currentTime = mediaPlayer.getCurrentTime();
                     mediaPlayer.play();
-                    isPaused = false;
-                    isPlaying = true;
-
-                    System.out.println("▶️ Resumed from: " + formatDuration(currentTime));
+                    System.out.println("▶️ Audio resumed");
                 } catch (Exception e) {
-                    System.out.println("⚠️ Error during resume: " + e.getMessage());
+                    System.out.println("⚠️ Resume error: " + e.getMessage());
                 }
-            });
-        } else if (!isPaused) {
-            System.out.println("⚠️ Music is not paused");
-        } else {
-            System.out.println("⚠️ No media to resume");
-        }
+            }
+        });
     }
 
     /**
-     * Stops playback completely
+     * Stop - NO state tracking
      */
     public void stop() {
-        if (mediaPlayer != null) {
-            Platform.runLater(() -> {
-                try {
+        Platform.runLater(() -> {
+            try {
+                if (mediaPlayer != null) {
                     mediaPlayer.stop();
                     mediaPlayer.dispose();
                     mediaPlayer = null;
-                    isPlaying = false;
-                    isPaused = false;
-
-                    System.out.println("⏹️ Playback stopped");
-                } catch (Exception e) {
-                    System.out.println("⚠️ Error during stop: " + e.getMessage());
                 }
-            });
-        }
-    }
-
-    /**
-     * Set volume (0.0 to 1.0)
-     */
-    public void setVolume(double volume) {
-        if (mediaPlayer != null) {
-            Platform.runLater(() -> {
-                double clampedVolume = Math.max(0.0, Math.min(1.0, volume));
-                mediaPlayer.setVolume(clampedVolume);
-                System.out.println("🔊 Volume set to: " + (int)(clampedVolume * 100) + "%");
-            });
-        }
-    }
-
-    /**
-     * Get current volume
-     */
-    public double getVolume() {
-        if (mediaPlayer != null) {
-            return mediaPlayer.getVolume();
-        }
-        return 1.0;
-    }
-
-    /**
-     * Get current playback time
-     */
-    public Duration getCurrentTime() {
-        if (mediaPlayer != null) {
-            return mediaPlayer.getCurrentTime();
-        }
-        return Duration.ZERO;
-    }
-
-    /**
-     * Get total duration
-     */
-    public Duration getTotalDuration() {
-        if (mediaPlayer != null) {
-            return mediaPlayer.getTotalDuration();
-        }
-        return Duration.ZERO;
-    }
-
-    /**
-     * Seek to specific time
-     */
-    public void seek(Duration time) {
-        if (mediaPlayer != null) {
-            Platform.runLater(() -> {
-                mediaPlayer.seek(time);
-                System.out.println("⏭️ Seeked to: " + formatDuration(time));
-            });
-        }
-    }
-
-    /**
-     * Get progress as percentage (0.0 to 1.0)
-     */
-    public double getProgress() {
-        if (mediaPlayer != null) {
-            Duration current = getCurrentTime();
-            Duration total = getTotalDuration();
-            if (total.toMillis() > 0) {
-                return current.toMillis() / total.toMillis();
+                System.out.println("⏹️ Audio stopped");
+            } catch (Exception e) {
+                System.out.println("⚠️ Stop error: " + e.getMessage());
             }
-        }
-        return 0.0;
+        });
     }
 
+    // ===== COMPATIBILITY METHODS FOR PlaybackService =====
+
     /**
-     * Format duration for display
+     * Compatibility method for PlaybackService
+     * Always returns false since state is managed by PlayerUI
+     * @return false (state managed externally)
      */
-    private String formatDuration(Duration duration) {
-        if (duration == null || duration.isUnknown()) {
-            return "00:00";
-        }
-
-        int totalSeconds = (int) duration.toSeconds();
-        int minutes = totalSeconds / 60;
-        int seconds = totalSeconds % 60;
-        return String.format("%02d:%02d", minutes, seconds);
+    public boolean isPlaying() {
+        return false; // State managed by PlayerUI, not AudioPlayer
     }
 
     /**
-     * Get formatted current time for display
+     * Compatibility method for PlaybackService
+     * Always returns false since state is managed by PlayerUI
+     * @return false (state managed externally)
      */
-    public String getFormattedCurrentTime() {
-        return formatDuration(getCurrentTime());
+    public boolean isPaused() {
+        return false; // State managed by PlayerUI, not AudioPlayer
     }
 
     /**
-     * Get formatted total duration for display
+     * Compatibility method for PlaybackService
+     * @return null (not tracked)
      */
-    public String getFormattedTotalDuration() {
-        return formatDuration(getTotalDuration());
+    public String getCurrentFile() {
+        return null; // Not tracked by AudioPlayer
     }
 
     /**
-     * Get playback status string
+     * Check if MediaPlayer exists (simple availability check)
+     * @return true if player exists, false otherwise
+     */
+    public boolean hasMediaPlayer() {
+        return mediaPlayer != null;
+    }
+
+    /**
+     * Get status string for display (compatibility)
+     * @return Simple status
      */
     public String getStatusString() {
-        if (isPaused) return "⏸️ Paused";
-        if (isPlaying) return "▶️ Playing";
-        return "⏹️ Stopped";
+        return hasMediaPlayer() ? "Audio Ready" : "No Audio";
     }
-
-    // Getters
-    public boolean isPlaying() { return isPlaying; }
-    public boolean isPaused() { return isPaused; }
-    public String getCurrentFile() { return currentFile; }
 }

@@ -17,12 +17,16 @@ public class PausedState implements PlaybackState {
 
     @Override
     public void next(PlaybackService service, DoublyLinkedPlaylist playlist) {
-        System.out.println("Cannot skip to next song while paused. Resume playback first.");
+        System.out.println("Moving to next song from pause.");
+        service.getCurrentPlayMode().next(service, playlist);
+        service.setState(new PlayingState());
     }
 
     @Override
     public void previous(PlaybackService service, DoublyLinkedPlaylist playlist) {
-        System.out.println("Cannot go to previous song while paused. Resume playback first.");
+        System.out.println("Moving to previous song from pause.");
+        service.getCurrentPlayMode().previous(service, playlist);
+        service.setState(new PlayingState());
     }
 
     @Override

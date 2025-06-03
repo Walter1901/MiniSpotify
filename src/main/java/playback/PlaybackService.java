@@ -9,6 +9,7 @@ import java.io.File;
 /**
  * Service for managing audio playback with different modes and states.
  * Implements State and Strategy patterns.
+ * Modified to work with stateless AudioPlayer - state is managed by PlayerUI
  */
 public class PlaybackService {
     private PlaybackState currentState;
@@ -16,6 +17,11 @@ public class PlaybackService {
     private DoublyLinkedPlaylist playlist;
     private AudioPlayer audioPlayer;
 
+    /**
+     * Constructor
+     * @param playlist Playlist to manage
+     * @param user User context (can be null)
+     */
     public PlaybackService(DoublyLinkedPlaylist playlist, User user) {
         this.playlist = playlist;
         this.currentState = new StoppedState();
@@ -23,10 +29,18 @@ public class PlaybackService {
         this.currentPlayMode = new SequentialPlayState();
     }
 
+    /**
+     * Set playback mode strategy
+     * @param mode Playback mode to use
+     */
     public void setPlaybackMode(PlaybackMode mode) {
         this.currentPlayMode = mode;
     }
 
+    /**
+     * Play current song
+     * State management is handled by PlayerUI, not here
+     */
     public void play() {
         if (playlist == null || playlist.isEmpty()) {
             System.out.println("Cannot play: playlist is empty or not loaded");
@@ -40,8 +54,9 @@ public class PlaybackService {
             if (filePath != null && !filePath.isEmpty()) {
                 File file = new File(filePath);
                 if (file.exists()) {
+                    // Just start playback - no state management here
                     audioPlayer.play(filePath);
-                    System.out.println("🎵 Now playing: " + currentSong.getTitle() + " by " + currentSong.getArtist());
+                    System.out.println("🎵 PlaybackService: Starting " + currentSong.getTitle());
                 } else {
                     System.out.println("⚠️ File not found: " + filePath);
                 }
@@ -49,47 +64,72 @@ public class PlaybackService {
                 System.out.println("⚠️ Missing audio file for song: " + currentSong.getTitle());
             }
 
+            // Update internal state (for state pattern)
             currentState.play(this, playlist);
         }
     }
 
+    /**
+     * Pause playback
+     * Just delegates to AudioPlayer - no state checking
+     */
     public void pause() {
-        if (audioPlayer.isPlaying()) {
-            audioPlayer.pause();
-        }
+        audioPlayer.pause();
         currentState.pause(this, playlist);
     }
 
+    /**
+     * Stop playback
+     */
     public void stop() {
         audioPlayer.stop();
         currentState.stop(this, playlist);
     }
 
+    /**
+     * Move to next song
+     */
     public void next() {
         audioPlayer.stop();
         currentState.next(this, playlist);
-        play();
     }
 
+    /**
+     * Move to previous song
+     */
     public void previous() {
         audioPlayer.stop();
         currentState.previous(this, playlist);
-        play();
     }
 
+    /**
+     * Set internal state (for state pattern)
+     * @param state New state
+     */
     public void setState(PlaybackState state) {
         this.currentState = state;
     }
 
-
+    /**
+     * Get current state
+     * @return Current playback state
+     */
     public PlaybackState getCurrentState() {
         return currentState;
     }
 
+    /**
+     * Get current playback mode
+     * @return Current playback mode
+     */
     public PlaybackMode getCurrentPlayMode() {
         return currentPlayMode;
     }
 
+    /**
+     * Get current song from playlist
+     * @return Current song or null if no playlist
+     */
     public Song getCurrentSong() {
         return playlist != null ? playlist.getCurrentSong() : null;
     }

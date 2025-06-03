@@ -32,7 +32,12 @@ public class StoppedState implements PlaybackState {
 
     @Override
     public void previous(PlaybackService service, DoublyLinkedPlaylist playlist) {
-        System.out.println("⚠️ Cannot go to previous song: music is stopped.");
+        if (playlist != null && !playlist.isEmpty()) {
+            System.out.println("Moving to previous song while stopped.");
+            service.getCurrentPlayMode().previous(service, playlist);
+        } else {
+            System.out.println("⚠️ Cannot move to previous song: playlist is empty or not defined.");
+        }
     }
 
     @Override

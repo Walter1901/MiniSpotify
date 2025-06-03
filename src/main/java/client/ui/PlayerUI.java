@@ -18,7 +18,9 @@ import java.util.List;
 import java.util.Scanner;
 
 /**
- * User interface for audio player
+ * User interface for audio player functionality
+ * Handles all player commands and playlist management
+ * Uses centralized state management to prevent synchronization issues
  */
 public class PlayerUI {
     private UserInterface mainUI;
@@ -29,14 +31,18 @@ public class PlayerUI {
     private PlaybackService playbackService;
     private AudioPlayer audioPlayer;
 
-    // Variables to manage playback state
+    // Centralized player state variables - SINGLE SOURCE OF TRUTH
     private boolean isPlaying = false;
     private boolean isPaused = false;
     private long pausePosition = 0;
     private String currentSongTitle = null;
 
     /**
-     * Constructor
+     * Constructor - Initialize PlayerUI with required dependencies
+     * @param mainUI Reference to main user interface
+     * @param in Input stream for server communication
+     * @param out Output stream for server communication
+     * @param scanner Scanner for user input
      */
     public PlayerUI(UserInterface mainUI, BufferedReader in, PrintWriter out, Scanner scanner) {
         this.mainUI = mainUI;
@@ -48,93 +54,75 @@ public class PlayerUI {
     }
 
     /**
-     * Starts the player
+     * Start the player with playlist selection
+     * Main entry point for player functionality
      */
     public void startPlayer() throws IOException {
         System.out.println("==================================================================================");
         System.out.println("\n--- Audio Player ---");
         System.out.println("==================================================================================");
 
+        // Get available playlists from server
         out.println("GET_PLAYLISTS");
         String response;
         List<String> playlists = new ArrayList<>();
 
         while (!(response = in.readLine()).equals("END")) {
             playlists.add(response);
-            System.out.println(response);
+            System.out.println("📂 " + response);
         }
 
+        // Check if any playlists exist
         if (playlists.isEmpty()) {
-            System.out.println("No playlist exists. Please create a playlist first.");
+            System.out.println("❌ No playlists found. Please create a playlist first.");
             return;
         }
 
+        // Get playlist name from user
         System.out.println("==================================================================================");
-        System.out.println("Enter the name of the playlist to play: ");
+        System.out.print("Enter the name of the playlist to play: ");
         System.out.println("==================================================================================");
-        String playlistName = scanner.nextLine();
+        String playlistName = scanner.nextLine().trim();
 
-        // Get the songs from the playlist
+        // Request songs from the selected playlist
         out.println("GET_PLAYLIST_SONGS " + playlistName);
         response = in.readLine();
 
         if (!response.startsWith("SUCCESS")) {
-            System.out.println("Error loading playlist: " + response);
+            System.out.println("❌ Error loading playlist: " + response);
             return;
         }
 
-        // Create local playlist
+        // Create local playlist and load songs
         DoublyLinkedPlaylist playlist = new DoublyLinkedPlaylist();
+        loadSongsIntoPlaylist(playlist);
 
-        // Read songs
-        while (!(response = in.readLine()).equals("END")) {
-            String[] songData = response.split("\\|");
-            if (songData.length >= 2) {
-                String title = songData[0];
-                String artist = songData[1];
-                String album = songData.length > 2 ? songData[2] : "Unknown";
-                String genre = songData.length > 3 ? songData[3] : "Unknown";
-                int duration = songData.length > 4 && !songData[4].isEmpty() ? Integer.parseInt(songData[4]) : 0;
-
-                // File path is the LAST part
-                String filePath = songData.length > 5 ? songData[5] : null;
-
-                Song song = new Song(title, artist, album, genre, duration);
-                if (filePath != null && !filePath.isEmpty()) {
-                    song.setFilePath(filePath);
-                }
-
-                System.out.println("DEBUG: Added song to playlist: " + title + " with path: " + filePath);
-                playlist.addSong(song);
-            }
-        }
-
-        // Inform the server that the playlist is loaded
+        // Inform server that playlist is loaded
         out.println("LOAD_PLAYLIST " + playlistName);
         response = in.readLine();
-        System.out.println("Loading playlist response: " + response);
+        System.out.println("📀 " + response);
 
-        // IMPORTANT: Initialize service BEFORE choosing playback mode
+        // Initialize playback service
         playbackService = new PlaybackService(playlist, null);
 
-        // Choose mode after initializing service
+        // Choose playback mode
         choosePlaybackMode();
 
-        // Player control loop
+        // Start the player control loop
         controlPlayerLoop(playlist);
     }
 
     /**
-     * Starts the player with a pre-loaded playlist (for shared playlists)
+     * Start player with a pre-loaded shared playlist
+     * Used when playing playlists shared by other users
+     * @param playlistName Name of the shared playlist
+     * @param ownerUsername Username of the playlist owner
      */
     public void startPlayerWithLoadedPlaylist(String playlistName, String ownerUsername) throws IOException {
         System.out.println("==================================================================================");
         System.out.println("\n--- Audio Player ---");
-        System.out.println("Playing shared playlist: " + playlistName + " (shared by " + ownerUsername + ")");
+        System.out.println("🎵 Playing shared playlist: " + playlistName + " (by " + ownerUsername + ")");
         System.out.println("==================================================================================");
-
-        // Choose playback mode
-        choosePlaybackMode();
 
         // Create local playlist
         DoublyLinkedPlaylist playlist = new DoublyLinkedPlaylist();
@@ -144,272 +132,391 @@ public class PlayerUI {
         String response = in.readLine();
 
         if (!response.startsWith("SUCCESS")) {
-            System.out.println("Error loading playlist: " + response);
+            System.out.println("❌ Error loading shared playlist: " + response);
             return;
         }
 
-        // Read songs
+        // Load songs into playlist
+        loadSongsIntoPlaylist(playlist);
+
+        // Initialize playback service
+        playbackService = new PlaybackService(playlist, null);
+
+        // Choose playback mode
+        choosePlaybackMode();
+
+        // Start the player control loop
+        controlPlayerLoop(playlist);
+    }
+
+    /**
+     * Load songs from server response into local playlist
+     * Parses song data and creates Song objects
+     * @param playlist The playlist to load songs into
+     */
+    private void loadSongsIntoPlaylist(DoublyLinkedPlaylist playlist) throws IOException {
+        String response;
+        int songCount = 0;
+
+        // Read song data until END marker
         while (!(response = in.readLine()).equals("END")) {
             String[] songData = response.split("\\|");
+
             if (songData.length >= 2) {
+                // Parse song information
                 String title = songData[0];
                 String artist = songData[1];
                 String album = songData.length > 2 ? songData[2] : "Unknown";
                 String genre = songData.length > 3 ? songData[3] : "Unknown";
-                int duration = songData.length > 4 && !songData[4].isEmpty() ? Integer.parseInt(songData[4]) : 0;
+                int duration = 0;
 
-                // File path is the LAST part
+                // Parse duration safely
+                if (songData.length > 4 && !songData[4].isEmpty()) {
+                    try {
+                        duration = Integer.parseInt(songData[4]);
+                    } catch (NumberFormatException e) {
+                        duration = 0; // Default if parsing fails
+                    }
+                }
+
+                // Get file path (last element)
                 String filePath = songData.length > 5 ? songData[5] : null;
 
+                // Create song object
                 Song song = new Song(title, artist, album, genre, duration);
                 if (filePath != null && !filePath.isEmpty()) {
                     song.setFilePath(filePath);
                 }
 
-                System.out.println("DEBUG: Added song to playlist: " + title + " with path: " + filePath);
+                // Add to playlist
                 playlist.addSong(song);
+                songCount++;
+
+                // Simple confirmation message
+                System.out.println("♪ " + title + " by " + artist);
             }
         }
 
-        // Player control loop
-        controlPlayerLoop(playlist);
+        System.out.println("==================================================================================");
+        System.out.println("✅ Loaded " + songCount + " songs into playlist");
+        System.out.println("==================================================================================");
     }
 
     /**
-     * Player control loop (factored common code)
+     * Choose playback mode (sequential, shuffle, repeat)
+     * This method is called before starting the player
      */
-    private void controlPlayerLoop(DoublyLinkedPlaylist playlist) throws IOException {
-        // Initialize service with playlist
-        playbackService = new PlaybackService(playlist, null);
+    private void choosePlaybackMode() throws IOException {
+        System.out.println("==================================================================================");
+        System.out.println("Choose playback mode:");
+        System.out.println("1. Sequential (play songs in order)");
+        System.out.println("2. Shuffle (play songs randomly)");
+        System.out.println("3. Repeat (repeat current song)");
+        System.out.println("==================================================================================");
+        System.out.print("Enter your choice (1-3): ");
+        String modeChoice = scanner.nextLine().trim();
 
-        // Configure playback mode
-        if (playbackService.getCurrentPlayMode() == null) {
-            playbackService.setPlaybackMode(new SequentialPlayState()); // Default mode
+        // Send mode selection to server
+        out.println("SET_PLAYBACK_MODE " + modeChoice);
+        String response = in.readLine();
+
+        // Configure local playback service
+        if (playbackService != null) {
+            switch (modeChoice) {
+                case "1":
+                    playbackService.setPlaybackMode(new SequentialPlayState());
+                    System.out.println("✅ Sequential mode selected");
+                    break;
+                case "2":
+                    playbackService.setPlaybackMode(new ShufflePlayState());
+                    System.out.println("✅ Shuffle mode selected");
+                    break;
+                case "3":
+                    playbackService.setPlaybackMode(new RepeatPlayState());
+                    System.out.println("✅ Repeat mode selected");
+                    break;
+                default:
+                    System.out.println("⚠️ Invalid choice. Using Sequential mode by default.");
+                    playbackService.setPlaybackMode(new SequentialPlayState());
+            }
         }
 
-        // Reset playback state
-        isPlaying = false;
-        isPaused = false;
-        pausePosition = 0;
+        // Check server response
+        if (!response.startsWith("SUCCESS")) {
+            System.out.println("Server response: " + response);
+        }
+    }
 
-        // Control loop
+    /**
+     * Main control loop with detailed status display
+     */
+    private void controlPlayerLoop(DoublyLinkedPlaylist playlist) throws IOException {
+        // Initialize service
+        playbackService = new PlaybackService(playlist, null);
+        if (playbackService.getCurrentPlayMode() == null) {
+            playbackService.setPlaybackMode(new SequentialPlayState());
+        }
+
+        // Reset state
+        resetPlayerState();
+
         String input;
         boolean exitPlayer = false;
 
         while (!exitPlayer) {
+            // Display detailed status
             System.out.println("==================================================================================");
-            System.out.println("Enter a command (play, pause, stop, next, prev, exit): ");
+            System.out.println("🎮 MUSIC PLAYER CONTROLS");
+            System.out.println("Commands: play, pause, stop, next, prev, exit");
+            System.out.println("Status: " + getPlayerStatus());
+            System.out.println("Debug - isPlaying: " + isPlaying + ", isPaused: " + isPaused);
+            if (currentSongTitle != null) {
+                System.out.println("Current song: " + currentSongTitle);
+            }
             System.out.println("==================================================================================");
+            System.out.print("Enter command: ");
+
             input = scanner.nextLine().trim().toLowerCase();
 
-            switch (input) {
-                case "play":
-                    if (isPaused) {
-                        // If paused, resume playback
-                        out.println("PLAYER_PLAY resume");
-                        String response = in.readLine();
-                        System.out.println(response);
-                        audioPlayer.resume();
-                        isPlaying = true;
-                        isPaused = false;
-                    } else {
-                        // New playback
-                        out.println("PLAYER_PLAY");
-                        String response = in.readLine();
-                        System.out.println(response);
+            try {
+                switch (input) {
+                    case "play":
+                        handlePlayCommand();
+                        break;
+                    case "pause":
+                        handlePauseCommand();
+                        break;
+                    case "stop":
+                        handleStopCommand();
+                        break;
+                    case "next":
+                        handleNextCommand();
+                        break;
+                    case "prev":
+                        handlePrevCommand();
+                        break;
+                    case "exit":
+                        handleExitCommand();
+                        exitPlayer = true;
+                        break;
+                    default:
+                        System.out.println("❌ Unknown command. Use: play, pause, stop, next, prev, or exit");
+                }
 
-                        // Get current song and play
-                        Song currentSong = playbackService.getCurrentSong();
-                        if (currentSong != null && currentSong.getFilePath() != null) {
-                            audioPlayer.play(currentSong.getFilePath());
-                            currentSongTitle = currentSong.getTitle();
-                            System.out.println("Now playing: " + currentSongTitle);
-                        } else {
-                            System.out.println("Cannot play: song or file path is missing");
-                        }
+                // Show state after each command
+                System.out.println("🔄 After command - Status: " + getPlayerStatus());
 
-                        isPlaying = true;
-                        isPaused = false;
-                        pausePosition = 0;
-                    }
-                    break;
-
-                case "pause":
-                    if (isPlaying && !isPaused) {
-                        out.println("PLAYER_PAUSE");
-                        String response = in.readLine();
-                        System.out.println(response);
-
-                        // Pause player and get position
-                        audioPlayer.pause();
-                        isPlaying = false;
-                        isPaused = true;
-                        System.out.println("Playback paused" + (currentSongTitle != null ? ": " + currentSongTitle : ""));
-                    } else if (isPaused) {
-                        System.out.println("Already paused.");
-                    } else {
-                        System.out.println("No music is playing.");
-                    }
-                    break;
-
-                case "stop":
-                    out.println("PLAYER_STOP");
-                    String stopResponse = in.readLine();
-                    System.out.println(stopResponse);
-
-                    // Full stop
-                    audioPlayer.stop();
-                    isPlaying = false;
-                    isPaused = false;
-                    pausePosition = 0;
-                    System.out.println("Playback stopped");
-                    break;
-
-                case "next":
-                    out.println("PLAYER_NEXT");
-                    String nextResponse = in.readLine();
-                    System.out.println(nextResponse);
-
-                    // Stop current playback
-                    audioPlayer.stop();
-
-                    // Go to next song
-                    playbackService.next();
-
-                    // Automatic playback of the new song
-                    Song nextSong = playbackService.getCurrentSong();
-                    if (nextSong != null && nextSong.getFilePath() != null) {
-                        audioPlayer.play(nextSong.getFilePath());
-                        currentSongTitle = nextSong.getTitle();
-                        System.out.println("Now playing: " + currentSongTitle);
-                    } else {
-                        System.out.println("Cannot play next song: song or file path is missing");
-                    }
-
-                    isPlaying = true;
-                    isPaused = false;
-                    pausePosition = 0;
-                    break;
-
-                case "prev":
-                    out.println("PLAYER_PREV");
-                    String prevResponse = in.readLine();
-                    System.out.println(prevResponse);
-
-                    // Stop current playback
-                    audioPlayer.stop();
-
-                    // Go to previous song
-                    playbackService.previous();
-
-                    // Automatic playback of the new song
-                    Song prevSong = playbackService.getCurrentSong();
-                    if (prevSong != null && prevSong.getFilePath() != null) {
-                        audioPlayer.play(prevSong.getFilePath());
-                        currentSongTitle = prevSong.getTitle();
-                        System.out.println("Now playing: " + currentSongTitle);
-                    } else {
-                        System.out.println("Cannot play previous song: song or file path is missing");
-                    }
-
-                    isPlaying = true;
-                    isPaused = false;
-                    pausePosition = 0;
-                    break;
-
-                case "exit":
-                    // Important: Stop playback before exiting
-                    if (isPlaying || isPaused) {
-                        // First stop the audio player completely
-                        audioPlayer.stop();
-                        isPlaying = false;
-                        isPaused = false;
-                        pausePosition = 0;
-                        currentSongTitle = null;
-
-                        // Then notify server
-                        out.println("PLAYER_STOP");
-
-                        // Use a local variable inside the try block
-                        try {
-                            // Read response but don't store in a variable that's used outside the try block
-                            stopResponse = in.readLine();
-                            System.out.println("Stop response: " + stopResponse);
-                        } catch (Exception e) {
-                            System.err.println("Error reading stop response: " + e.getMessage());
-                            // Continue despite error
-                        }
-                    }
-
-                    // Notify server of player mode exit
-                    out.println("PLAYER_EXIT");
-
-                    try {
-                        // Same approach here - keep the variable inside the try block
-                        String exitResponse = in.readLine();
-                        System.out.println("Exit player response: " + exitResponse);
-                    } catch (Exception e) {
-                        System.err.println("Error reading exit response: " + e.getMessage());
-                        // Continue despite error
-                    }
-
-                    System.out.println("Return to main menu..");
-
-                    // Reset state without depending on server responses
-                    isPlaying = false;
-                    isPaused = false;
-                    pausePosition = 0;
-                    currentSongTitle = null;
-                    exitPlayer = true;
-                    break;
-
-                default:
-                    System.out.println("Unknown command.");
+            } catch (Exception e) {
+                System.out.println("⚠️ Error processing command: " + e.getMessage());
+                e.printStackTrace();
             }
         }
     }
 
     /**
-     * Choose playback mode
+     * Handle play command with complete state management
      */
-    private void choosePlaybackMode() throws IOException {
-        System.out.println("Choose reading mode:");
-        System.out.println("1. Sequential");
-        System.out.println("2. Shuffle");
-        System.out.println("3. Repeat");
-        System.out.println("==================================================================================");
-        String modeChoice = scanner.nextLine().trim();
+    private void handlePlayCommand() throws IOException {
+        if (isPaused && currentSongTitle != null) {
+            // Resume from pause
+            out.println("PLAYER_PLAY resume");
+            String response = in.readLine();
+            System.out.println("Server: " + response);
 
-        out.println("SET_PLAYBACK_MODE " + modeChoice);
+            // Resume audio and update state immediately
+            audioPlayer.resume();
+            isPlaying = true;
+            isPaused = false;
+
+            System.out.println("▶️ Resumed: " + currentSongTitle);
+        } else {
+            // Start new song
+            out.println("PLAYER_PLAY");
+            String response = in.readLine();
+            System.out.println("Server: " + response);
+
+            Song currentSong = playbackService.getCurrentSong();
+            if (currentSong != null && currentSong.getFilePath() != null) {
+                playNewSong(currentSong);
+            } else {
+                System.out.println("❌ Cannot play: no song available");
+            }
+        }
+    }
+
+    /**
+     * Handle pause command with immediate state update
+     */
+    private void handlePauseCommand() throws IOException {
+        System.out.println("🔄 Pause requested - Current state: " + getPlayerStatus());
+
+        // Check if we can pause
+        if (!isPlaying || isPaused) {
+            System.out.println("⚠️ Cannot pause - not playing or already paused");
+            return;
+        }
+
+        // Send to server
+        out.println("PLAYER_PAUSE");
         String response = in.readLine();
+        System.out.println("Server: " + response);
 
-        // If playbackService is null, inform user
-        if (playbackService == null) {
-            System.out.println("Error: Playback service not initialized yet.");
-            return; // Exit method without attempting to use playbackService
+        // Pause audio and update state immediately
+        audioPlayer.pause();
+        isPlaying = false;
+        isPaused = true;
+
+        System.out.println("⏸️ Paused: " + (currentSongTitle != null ? currentSongTitle : "Unknown"));
+    }
+
+    /**
+     * Handle stop command with immediate state reset
+     */
+    private void handleStopCommand() throws IOException {
+        // Send to server
+        out.println("PLAYER_STOP");
+        String response = in.readLine();
+        System.out.println("Server: " + response);
+
+        // Stop audio and reset state immediately
+        audioPlayer.stop();
+        resetPlayerState();
+
+        System.out.println("⏹️ Playback stopped");
+    }
+
+    /**
+     * Handle next command with immediate state management
+     */
+    private void handleNextCommand() throws IOException {
+        System.out.println("🔄 Moving to next song...");
+
+        // Send to server
+        out.println("PLAYER_NEXT");
+        String response = in.readLine();
+        System.out.println("Server: " + response);
+
+        // Stop current audio immediately
+        audioPlayer.stop();
+
+        // Reset state immediately
+        resetPlayerState();
+
+        // Move to next song
+        playbackService.next();
+        Song nextSong = playbackService.getCurrentSong();
+
+        // Play next song and update state
+        if (nextSong != null && nextSong.getFilePath() != null) {
+            System.out.println("⏭️ Next: " + nextSong.getTitle());
+            playNewSong(nextSong);
+        } else {
+            System.out.println("❌ No next song available");
+        }
+    }
+
+    /**
+     * Handle previous command with immediate state management
+     */
+    private void handlePrevCommand() throws IOException {
+        System.out.println("🔄 Moving to previous song...");
+
+        // Send to server
+        out.println("PLAYER_PREV");
+        String response = in.readLine();
+        System.out.println("Server: " + response);
+
+        // Stop current audio immediately
+        audioPlayer.stop();
+
+        // Reset state immediately
+        resetPlayerState();
+
+        // Move to previous song
+        playbackService.previous();
+        Song prevSong = playbackService.getCurrentSong();
+
+        // Play previous song and update state
+        if (prevSong != null && prevSong.getFilePath() != null) {
+            System.out.println("⏮️ Previous: " + prevSong.getTitle());
+            playNewSong(prevSong);
+        } else {
+            System.out.println("❌ No previous song available");
+        }
+    }
+
+    /**
+     * Handle exit command with complete cleanup
+     */
+    private void handleExitCommand() throws IOException {
+        // Stop audio immediately
+        audioPlayer.stop();
+        resetPlayerState();
+
+        // Notify server
+        out.println("PLAYER_STOP");
+        try {
+            String stopResponse = in.readLine();
+            System.out.println("Stop response: " + stopResponse);
+        } catch (Exception e) {
+            System.err.println("Stop response error: " + e.getMessage());
         }
 
-        // Configure playback mode only if playbackService is not null
-        switch (modeChoice) {
-            case "1":
-                playbackService.setPlaybackMode(new SequentialPlayState());
-                System.out.println("Sequential mode selected");
-                break;
-            case "2":
-                playbackService.setPlaybackMode(new ShufflePlayState());
-                System.out.println("Shuffle mode selected");
-                break;
-            case "3":
-                playbackService.setPlaybackMode(new RepeatPlayState());
-                System.out.println("Repeat mode selected");
-                break;
-            default:
-                System.out.println("Unknown mode. Sequential mode selected by default.");
-                playbackService.setPlaybackMode(new SequentialPlayState());
+        out.println("PLAYER_EXIT");
+        try {
+            String exitResponse = in.readLine();
+            System.out.println("Exit response: " + exitResponse);
+        } catch (Exception e) {
+            System.err.println("Exit response error: " + e.getMessage());
         }
 
-        if (!response.startsWith("SUCCESS")) {
-            System.out.println("Server response: " + response);
+        System.out.println("↩️ Returning to main menu...");
+    }
+
+    /**
+     * Play new song with immediate state update
+     * @param song Song to play
+     */
+    private void playNewSong(Song song) {
+        System.out.println("🎵 Loading: " + song.getTitle() + " by " + song.getArtist());
+
+        // Update ALL state immediately BEFORE starting audio
+        currentSongTitle = song.getTitle();
+        isPlaying = true;
+        isPaused = false;
+        pausePosition = 0;
+
+        // Start audio playback
+        audioPlayer.play(song.getFilePath());
+
+        System.out.println("🎵 Now playing: " + currentSongTitle);
+        System.out.println("🔄 State updated: " + getPlayerStatus());
+    }
+
+    /**
+     * Reset all player state variables
+     */
+    private void resetPlayerState() {
+        isPlaying = false;
+        isPaused = false;
+        pausePosition = 0;
+        currentSongTitle = null;
+        System.out.println("🔄 State reset: " + getPlayerStatus());
+    }
+
+    /**
+     * Get current player status as string
+     * @return Status string for debugging
+     */
+    private String getPlayerStatus() {
+        String status = "";
+        if (isPlaying) status += "PLAYING";
+        else if (isPaused) status += "PAUSED";
+        else status += "STOPPED";
+
+        if (currentSongTitle != null) {
+            status += " - " + currentSongTitle;
         }
+        return status;
     }
 }
