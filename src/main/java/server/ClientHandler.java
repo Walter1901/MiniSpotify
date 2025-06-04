@@ -242,6 +242,12 @@ public class ClientHandler implements Runnable {
         commandFactories.put("COPY_SHARED_PLAYLIST", this::copySharedPlaylistCommand);
         commandFactories.put("LOAD_SHARED_PLAYLIST", this::loadSharedPlaylistCommand);
         commandFactories.put("SET_PLAYLIST_SHARING", this::setPlaylistSharingCommand);
+
+        // ===== COLLABORATIVE PLAYLIST COMMANDS =====
+        commandFactories.put("ADD_COLLABORATOR", this::addCollaboratorCommand);
+        commandFactories.put("REMOVE_COLLABORATOR", this::removeCollaboratorCommand);
+        commandFactories.put("LIST_COLLABORATORS", this::listCollaboratorsCommand);
+
     }
 
     // ===============================
@@ -1462,6 +1468,194 @@ public class ClientHandler implements Runnable {
      */
     public static Map<String, ClientHandler> getActiveHandlers() {
         return new HashMap<>(activeHandlers);
+    }
+
+    // ===============================
+    // COLLABORATIVE PLAYLIST COMMANDS
+    // ===============================
+
+    /**
+     * Add collaborator to existing collaborative playlist
+     */
+    private ServerCommand addCollaboratorCommand(String args) {
+        return out -> {
+            if (loggedInUser == null) {
+                out.println("ERROR: Not logged in");
+                return false;
+            }
+
+            String[] parts = args.split(" ", 2);
+            if (parts.length != 2) {
+                out.println("ERROR: Usage: ADD_COLLABORATOR <playlist_name> <username>");
+                return false;
+            }
+
+            String playlistName = parts[0].trim();
+            String collaboratorUsername = parts[1].trim();
+
+            try {
+                // Find the collaborative playlist
+                CollaborativePlaylist collabPlaylist = null;
+                for (Playlist p : loggedInUser.getPlaylists()) {
+                    if (p instanceof CollaborativePlaylist &&
+                            p.getName().equalsIgnoreCase(playlistName)) {
+                        collabPlaylist = (CollaborativePlaylist) p;
+                        break;
+                    }
+                }
+
+                if (collabPlaylist == null) {
+                    out.println("ERROR: Collaborative playlist not found: " + playlistName);
+                    return false;
+                }
+
+                // Check if user is the owner
+                if (!collabPlaylist.getOwnerUsername().equals(loggedInUser.getUsername())) {
+                    out.println("ERROR: Only the owner can add collaborators");
+                    return false;
+                }
+
+                // Find the user to add
+                User collaboratorUser = UserPersistenceManager.getUserByUsername(collaboratorUsername);
+                if (collaboratorUser == null) {
+                    out.println("ERROR: User not found: " + collaboratorUsername);
+                    return false;
+                }
+
+                // Add collaborator
+                collabPlaylist.addCollaborator(collaboratorUser);
+                UserPersistenceManager.updateUser(loggedInUser);
+
+                out.println("SUCCESS: " + collaboratorUsername + " added as collaborator to " + playlistName);
+                AppLogger.userActivity(loggedInUser.getUsername(), "COLLABORATOR_ADDED",
+                        collaboratorUsername + " to " + playlistName);
+                return true;
+
+            } catch (Exception e) {
+                AppLogger.error("Error adding collaborator", e);
+                out.println("ERROR: Server error adding collaborator");
+                return false;
+            }
+        };
+    }
+
+    /**
+     * Remove collaborator from collaborative playlist
+     */
+    private ServerCommand removeCollaboratorCommand(String args) {
+        return out -> {
+            if (loggedInUser == null) {
+                out.println("ERROR: Not logged in");
+                return false;
+            }
+
+            String[] parts = args.split(" ", 2);
+            if (parts.length != 2) {
+                out.println("ERROR: Usage: REMOVE_COLLABORATOR <playlist_name> <username>");
+                return false;
+            }
+
+            String playlistName = parts[0].trim();
+            String collaboratorUsername = parts[1].trim();
+
+            try {
+                // Find the collaborative playlist
+                CollaborativePlaylist collabPlaylist = null;
+                for (Playlist p : loggedInUser.getPlaylists()) {
+                    if (p instanceof CollaborativePlaylist &&
+                            p.getName().equalsIgnoreCase(playlistName)) {
+                        collabPlaylist = (CollaborativePlaylist) p;
+                        break;
+                    }
+                }
+
+                if (collabPlaylist == null) {
+                    out.println("ERROR: Collaborative playlist not found: " + playlistName);
+                    return false;
+                }
+
+                // Check if user is the owner
+                if (!collabPlaylist.getOwnerUsername().equals(loggedInUser.getUsername())) {
+                    out.println("ERROR: Only the owner can remove collaborators");
+                    return false;
+                }
+
+                // Find the user to remove
+                User collaboratorUser = UserPersistenceManager.getUserByUsername(collaboratorUsername);
+                if (collaboratorUser == null) {
+                    out.println("ERROR: User not found: " + collaboratorUsername);
+                    return false;
+                }
+
+                // Remove collaborator
+                collabPlaylist.removeCollaborator(collaboratorUser);
+                UserPersistenceManager.updateUser(loggedInUser);
+
+                out.println("SUCCESS: " + collaboratorUsername + " removed from " + playlistName);
+                AppLogger.userActivity(loggedInUser.getUsername(), "COLLABORATOR_REMOVED",
+                        collaboratorUsername + " from " + playlistName);
+                return true;
+
+            } catch (Exception e) {
+                AppLogger.error("Error removing collaborator", e);
+                out.println("ERROR: Server error removing collaborator");
+                return false;
+            }
+        };
+    }
+
+    /**
+     * List collaborators of a collaborative playlist
+     */
+    private ServerCommand listCollaboratorsCommand(String args) {
+        return out -> {
+            if (loggedInUser == null) {
+                out.println("ERROR: Not logged in");
+                out.println("END");
+                return false;
+            }
+
+            String playlistName = args.trim();
+
+            try {
+                // Find the collaborative playlist
+                CollaborativePlaylist collabPlaylist = null;
+                for (Playlist p : loggedInUser.getPlaylists()) {
+                    if (p instanceof CollaborativePlaylist &&
+                            p.getName().equalsIgnoreCase(playlistName)) {
+                        collabPlaylist = (CollaborativePlaylist) p;
+                        break;
+                    }
+                }
+
+                if (collabPlaylist == null) {
+                    out.println("ERROR: Collaborative playlist not found: " + playlistName);
+                    out.println("END");
+                    return false;
+                }
+
+                out.println("SUCCESS: Collaborators for " + playlistName);
+                out.println("Owner: " + collabPlaylist.getOwnerUsername());
+
+                List<String> collaborators = collabPlaylist.getCollaboratorUsernames();
+                if (collaborators.isEmpty()) {
+                    out.println("No collaborators added yet");
+                } else {
+                    for (String collaborator : collaborators) {
+                        out.println("Collaborator: " + collaborator);
+                    }
+                }
+
+                out.println("END");
+                return true;
+
+            } catch (Exception e) {
+                AppLogger.error("Error listing collaborators", e);
+                out.println("ERROR: Server error listing collaborators");
+                out.println("END");
+                return false;
+            }
+        };
     }
 
     // ===============================

@@ -31,39 +31,139 @@ public class CollaborativePlaylist extends Playlist implements Serializable {
     }
 
     /**
-     * Add a collaborator safely
+     * Add a collaborator safely with enhanced validation
      */
     public void addCollaborator(User user) {
         if (user == null) {
+            System.out.println("DEBUG: Cannot add null user as collaborator");
             return;
         }
 
         String username = user.getUsername();
-
-        if (username.equals(ownerUsername)) {
-            return; // Owner cannot be added as collaborator
+        if (username == null || username.trim().isEmpty()) {
+            System.out.println("DEBUG: Cannot add user with null/empty username");
+            return;
         }
 
-        if (!collaboratorUsernames.contains(username)) {
+        // Owner cannot be added as collaborator
+        if (username.equals(ownerUsername)) {
+            System.out.println("DEBUG: Owner cannot be added as collaborator: " + username);
+            return;
+        }
+
+        // Check if already a collaborator (case-insensitive)
+        boolean alreadyExists = collaboratorUsernames.stream()
+                .anyMatch(existing -> existing.equalsIgnoreCase(username));
+
+        if (alreadyExists) {
+            System.out.println("DEBUG: User already a collaborator: " + username);
+            return;
+        }
+
+        // Add the collaborator
+        collaboratorUsernames.add(username);
+        System.out.println("DEBUG: Successfully added collaborator: " + username + " to playlist: " + getName());
+    }
+
+    /**
+     * Add collaborator by username directly (useful for deserialization)
+     */
+    public void addCollaboratorByUsername(String username) {
+        if (username == null || username.trim().isEmpty()) {
+            return;
+        }
+
+        // Owner check
+        if (username.equals(ownerUsername)) {
+            return;
+        }
+
+        // Duplicate check (case-insensitive)
+        boolean alreadyExists = collaboratorUsernames.stream()
+                .anyMatch(existing -> existing.equalsIgnoreCase(username));
+
+        if (!alreadyExists) {
             collaboratorUsernames.add(username);
+            System.out.println("DEBUG: Added collaborator by username: " + username);
         }
     }
 
     /**
-     * Remove a collaborator
+     * Remove a collaborator with enhanced logging
      */
     public void removeCollaborator(User user) {
         if (user == null) return;
-        collaboratorUsernames.remove(user.getUsername());
+
+        String username = user.getUsername();
+        boolean removed = collaboratorUsernames.removeIf(existing ->
+                existing.equalsIgnoreCase(username));
+
+        if (removed) {
+            System.out.println("DEBUG: Removed collaborator: " + username + " from playlist: " + getName());
+        } else {
+            System.out.println("DEBUG: Collaborator not found for removal: " + username);
+        }
     }
 
     /**
-     * Check if a user is a collaborator
+     * Check if a user is a collaborator with enhanced validation
      */
     public boolean isCollaborator(User user) {
         if (user == null) return false;
+
         String username = user.getUsername();
-        return username.equals(ownerUsername) || collaboratorUsernames.contains(username);
+        if (username == null) return false;
+
+        // Owner is always considered a collaborator
+        if (username.equals(ownerUsername)) {
+            return true;
+        }
+
+        // Check if in collaborators list (case-insensitive)
+        return collaboratorUsernames.stream()
+                .anyMatch(existing -> existing.equalsIgnoreCase(username));
+    }
+
+    /**
+     * Check if user can modify this playlist
+     */
+    public boolean canUserModify(String username) {
+        if (username == null) return false;
+
+        // Owner can always modify
+        if (username.equals(ownerUsername)) {
+            return true;
+        }
+
+        // Check if user is a collaborator
+        return collaboratorUsernames.stream()
+                .anyMatch(existing -> existing.equalsIgnoreCase(username));
+    }
+
+    /**
+     * Get count of collaborators
+     */
+    public int getCollaboratorCount() {
+        return collaboratorUsernames.size();
+    }
+
+    /**
+     * Debug method to print all collaborators
+     */
+    public void debugCollaborators() {
+        System.out.println("=== COLLABORATIVE PLAYLIST DEBUG ===");
+        System.out.println("Playlist: " + getName());
+        System.out.println("Owner: " + ownerUsername);
+        System.out.println("Collaborators (" + collaboratorUsernames.size() + "):");
+
+        if (collaboratorUsernames.isEmpty()) {
+            System.out.println("  (No collaborators)");
+        } else {
+            for (int i = 0; i < collaboratorUsernames.size(); i++) {
+                System.out.println("  " + (i + 1) + ". " + collaboratorUsernames.get(i));
+            }
+        }
+        System.out.println("=====================================");
     }
 
     // Getters

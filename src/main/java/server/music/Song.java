@@ -56,6 +56,9 @@ public class Song implements Serializable {
     public int getDuration() { return duration; }
     public String getFilePath() { return filePath; }
     public void setFilePath(String filePath) { this.filePath = filePath; }
+    public void setAlbum(String album) { this.album = album; }
+    public void setGenre(String genre) { this.genre = genre; }
+    public void setDuration(int duration) { this.duration = duration; }
 
     /**
      * Get formatted duration as MM:SS

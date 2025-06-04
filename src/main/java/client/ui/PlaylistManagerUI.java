@@ -60,6 +60,9 @@ public class PlaylistManagerUI {
                         deletePlaylist();
                         break;
                     case "8":
+                        manageCollaborators();
+                        break;
+                    case "9":
                         back = true;
                         break;
                     default:
@@ -95,7 +98,8 @@ public class PlaylistManagerUI {
         System.out.println("5. Delete a song from a playlist");
         System.out.println("6. Reorder songs in a playlist");
         System.out.println("7. Delete a playlist");
-        System.out.println("8. Back");
+        System.out.println("8. Manage collaborators");
+        System.out.println("9. Back");
         System.out.println("==================================================================================");
         System.out.print("Choose an option: ");
     }
@@ -700,4 +704,202 @@ public class PlaylistManagerUI {
             throw e;
         }
     }
+    /**
+     * Manage collaborators for collaborative playlists
+     */
+    private void manageCollaborators() throws IOException {
+        System.out.println("==================================================================================");
+        System.out.println("\n--- Collaborator Management ---");
+        System.out.println("==================================================================================");
+
+        // Get user's collaborative playlists
+        out.println("GET_PLAYLISTS");
+        String response;
+        List<String> allPlaylists = new ArrayList<>();
+
+        while ((response = safeReadLine()) != null && !response.equals("END")) {
+            allPlaylists.add(response);
+        }
+
+        if (response == null) {
+            handleConnectionLoss("Lost connection while retrieving playlists");
+            return;
+        }
+
+        // Filter collaborative playlists (we need to check each one)
+        List<String> collaborativePlaylists = new ArrayList<>();
+        for (String playlistName : allPlaylists) {
+            // For now, let user select and we'll check if it's collaborative
+            collaborativePlaylists.add(playlistName);
+        }
+
+        if (collaborativePlaylists.isEmpty()) {
+            System.out.println("==================================================================================");
+            System.out.println("No playlists found.");
+            System.out.println("==================================================================================");
+            return;
+        }
+
+        System.out.println("Available playlists:");
+        for (int i = 0; i < collaborativePlaylists.size(); i++) {
+            System.out.println((i + 1) + ". " + collaborativePlaylists.get(i));
+        }
+
+        System.out.println("==================================================================================");
+        System.out.print("Select playlist number (or 0 to cancel): ");
+        String input = scanner.nextLine().trim();
+
+        try {
+            int choice = Integer.parseInt(input);
+            if (choice == 0) return;
+
+            if (choice < 1 || choice > collaborativePlaylists.size()) {
+                System.out.println("Invalid choice.");
+                return;
+            }
+
+            String selectedPlaylist = collaborativePlaylists.get(choice - 1);
+            managePlaylistCollaborators(selectedPlaylist);
+
+        } catch (NumberFormatException e) {
+            System.out.println("Please enter a valid number.");
+        }
+    }
+
+    /**
+     * Manage collaborators for a specific playlist
+     */
+    private void managePlaylistCollaborators(String playlistName) throws IOException {
+        while (true) {
+            System.out.println("==================================================================================");
+            System.out.println("Managing collaborators for: " + playlistName);
+            System.out.println("==================================================================================");
+            System.out.println("1. List current collaborators");
+            System.out.println("2. Add collaborator");
+            System.out.println("3. Remove collaborator");
+            System.out.println("4. Back");
+            System.out.println("==================================================================================");
+            System.out.print("Choose an option: ");
+
+            String option = scanner.nextLine().trim();
+
+            switch (option) {
+                case "1":
+                    listCollaborators(playlistName);
+                    break;
+                case "2":
+                    addCollaborator(playlistName);
+                    break;
+                case "3":
+                    removeCollaborator(playlistName);
+                    break;
+                case "4":
+                    return;
+                default:
+                    System.out.println("Invalid option.");
+            }
+        }
+    }
+
+    /**
+     * List collaborators for a playlist
+     */
+    private void listCollaborators(String playlistName) throws IOException {
+        System.out.println("==================================================================================");
+        out.println("LIST_COLLABORATORS " + playlistName);
+
+        String response;
+        while ((response = safeReadLine()) != null && !response.equals("END")) {
+            System.out.println(response);
+        }
+
+        if (response == null) {
+            handleConnectionLoss("Lost connection while listing collaborators");
+            return;
+        }
+        System.out.println("==================================================================================");
+    }
+
+    /**
+     * Add a collaborator to a playlist
+     */
+    private void addCollaborator(String playlistName) throws IOException {
+        System.out.println("==================================================================================");
+        System.out.print("Enter username to add as collaborator: ");
+        String username = scanner.nextLine().trim();
+
+        if (username.isEmpty()) {
+            System.out.println("Username cannot be empty.");
+            return;
+        }
+
+        out.println("ADD_COLLABORATOR " + playlistName + " " + username);
+        String response = safeReadLine();
+
+        if (response == null) {
+            handleConnectionLoss("No response when adding collaborator");
+            return;
+        }
+
+        System.out.println("==================================================================================");
+        System.out.println(response);
+        System.out.println("==================================================================================");
+    }
+
+    /**
+     * Remove a collaborator from a playlist
+     */
+    private void removeCollaborator(String playlistName) throws IOException {
+        System.out.println("==================================================================================");
+
+        // First list current collaborators
+        System.out.println("Current collaborators:");
+        out.println("LIST_COLLABORATORS " + playlistName);
+
+        String response;
+        List<String> collaborators = new ArrayList<>();
+
+        while ((response = safeReadLine()) != null && !response.equals("END")) {
+            if (response.startsWith("Collaborator: ")) {
+                String collaborator = response.substring("Collaborator: ".length());
+                collaborators.add(collaborator);
+                System.out.println((collaborators.size()) + ". " + collaborator);
+            } else {
+                System.out.println(response);
+            }
+        }
+
+        if (response == null) {
+            handleConnectionLoss("Lost connection while listing collaborators");
+            return;
+        }
+
+        if (collaborators.isEmpty()) {
+            System.out.println("No collaborators to remove.");
+            System.out.println("==================================================================================");
+            return;
+        }
+
+        System.out.println("==================================================================================");
+        System.out.print("Enter username to remove: ");
+        String username = scanner.nextLine().trim();
+
+        if (username.isEmpty()) {
+            System.out.println("Username cannot be empty.");
+            return;
+        }
+
+        out.println("REMOVE_COLLABORATOR " + playlistName + " " + username);
+        response = safeReadLine();
+
+        if (response == null) {
+            handleConnectionLoss("No response when removing collaborator");
+            return;
+        }
+
+        System.out.println("==================================================================================");
+        System.out.println(response);
+        System.out.println("==================================================================================");
+    }
+
 }
