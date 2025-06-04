@@ -10,20 +10,20 @@
         "type": "standard",
         "songs": [
           {
-            "title": "Mussulo",
-            "artist": "Dj Aka-m e Dj Malvado Feat Dody",
-            "album": "Afro House Collection",
-            "genre": "Electronic",
-            "duration": 210,
-            "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\Dj Aka-m e Dj Malvado Feat Dody - Mussulo.mp3"
-          },
-          {
             "title": "Ciel",
             "artist": "GIMS",
             "album": "Le Fléau",
             "genre": "French Rap",
             "duration": 195,
             "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\GIMS - Ciel (Official Lyrics Video).mp3"
+          },
+          {
+            "title": "Mussulo",
+            "artist": "Dj Aka-m e Dj Malvado Feat Dody",
+            "album": "Afro House Collection",
+            "genre": "Electronic",
+            "duration": 210,
+            "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\Dj Aka-m e Dj Malvado Feat Dody - Mussulo.mp3"
           },
           {
             "title": "NINAO",
