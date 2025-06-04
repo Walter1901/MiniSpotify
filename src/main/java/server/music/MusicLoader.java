@@ -118,7 +118,7 @@ public class MusicLoader {
 
             Song song;
             if (metadata != null) {
-                // ✅ Use REAL metadata from your collection
+
                 song = new Song(
                         metadata.title,
                         metadata.artist,
@@ -131,22 +131,23 @@ public class MusicLoader {
                         " (" + metadata.album + ", " + metadata.genre + ", " +
                         formatDuration(metadata.duration) + ")");
             } else {
-                // ⚠️ Fallback for unknown songs (still better than all "Unknown")
+                // ⚠️ Fallback for unknown songs
                 String title = extractTitleFromFileName(fileName);
                 String artist = extractArtistFromFileName(fileName);
 
                 song = new Song(
                         title,
                         artist,
-                        "Various Artists",     // Better than "Unknown"
-                        "Mixed",              // Better than "Unknown"
-                        180                   // Default 3 minutes
+                        "Various Artists",
+                        "Mixed",
+                        180
                 );
 
                 System.out.println("⚠️ Unknown song, using extracted data: " + title + " by " + artist);
             }
 
-            song.setFilePath(file.getAbsolutePath());
+            String relativePath = "mp3/" + file.getName();
+            song.setFilePath(relativePath);
             MusicLibrary.getInstance().addSong(song);
         }
 
@@ -227,16 +228,30 @@ public class MusicLoader {
      * Find MP3 directory with multiple fallback locations
      */
     private File findMp3Directory() {
-        String[] possiblePaths = {
+
+        String[] deploymentPaths = {
+                "./mp3",
+                "mp3",
+                System.getProperty("user.dir") + "/mp3"
+        };
+
+        for (String path : deploymentPaths) {
+            File dir = new File(path);
+            if (dir.exists() && dir.isDirectory()) {
+                System.out.println("✅ Found MP3 directory for JAR: " + dir.getAbsolutePath());
+                return dir;
+            }
+        }
+
+
+        String[] devPaths = {
                 "src/main/resources/mp3",
                 "resources/mp3",
-                "mp3",
-                "./mp3",
                 "../mp3",
                 "./src/main/resources/mp3"
         };
 
-        for (String path : possiblePaths) {
+        for (String path : devPaths) {
             File dir = new File(path);
             if (dir.exists() && dir.isDirectory()) {
                 return dir;
@@ -253,12 +268,6 @@ public class MusicLoader {
             }
         } catch (Exception e) {
             // Silent fail
-        }
-
-        String workingDir = System.getProperty("user.dir");
-        File workingDirMp3 = new File(workingDir, "mp3");
-        if (workingDirMp3.exists() && workingDirMp3.isDirectory()) {
-            return workingDirMp3;
         }
 
         return null;

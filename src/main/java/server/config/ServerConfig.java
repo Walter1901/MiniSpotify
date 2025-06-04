@@ -11,13 +11,6 @@ public class ServerConfig {
     public static final int MAX_CLIENTS = 10;
     public static final int CONNECTION_TIMEOUT = 60000; // milliseconds
 
-    // File system paths
-    public static final String MP3_PATH = "src/main/resources/mp3";
-    public static final String USERS_FILE = "users.json";
-    public static final String PLAYLISTS_FILE = "playlists.json";
-
-    // Date and time formats
-    public static final String DATE_FORMAT = "yyyy-MM-dd HH:mm:ss";
 
     /**
      * Private constructor to prevent instantiation

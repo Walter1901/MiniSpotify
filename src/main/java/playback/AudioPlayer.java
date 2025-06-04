@@ -54,8 +54,21 @@ public class AudioPlayer {
                     return;
                 }
 
-                File file = new File(filePath);
+                File file = null;
+
+                if (filePath.startsWith("mp3/")) {
+                    file = new File("./" + filePath);  // ./mp3/filename.mp3
+                    if (!file.exists()) {
+                        file = new File(filePath);     // mp3/filename.mp3
+                    }
+                }
+
+                if (file == null || !file.exists()) {
+                    file = new File(filePath);
+                }
+
                 if (!file.exists()) {
+                    System.err.println("❌ Audio file not found: " + filePath);
                     return;
                 }
 
@@ -69,7 +82,7 @@ public class AudioPlayer {
                 });
 
                 mediaPlayer.setOnError(() -> {
-                    // Silent error handling
+                    System.err.println("❌ Media player error for: " + filePath);
                 });
 
                 mediaPlayer.setOnEndOfMedia(() -> {
@@ -77,7 +90,7 @@ public class AudioPlayer {
                 });
 
             } catch (Exception e) {
-                // Silent error handling
+                System.err.println("❌ Error playing audio: " + e.getMessage());
             }
         });
     }
