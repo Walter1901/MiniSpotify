@@ -8,35 +8,66 @@ import javafx.scene.media.MediaPlayer;
 import java.io.File;
 
 /**
- * Stateless AudioPlayer with compatibility methods
- * Provides methods needed by PlaybackService but state is managed by PlayerUI
+ * AudioPlayer
+ * Robust JavaFX initialization and file path handling
  */
 public class AudioPlayer {
     private MediaPlayer mediaPlayer;
-    private boolean isInitialized = false;
+    private static boolean javaFxInitialized = false;
+    private static boolean javaFxAvailable = true;
 
     /**
-     * Constructor - Initialize JavaFX only
+     * Constructor - Initialize JavaFX with proper error handling
      */
     public AudioPlayer() {
         initializeJavaFX();
     }
 
     /**
-     * Initialize JavaFX environment
+     * Initialize JavaFX environment with robust error handling
      */
-    private void initializeJavaFX() {
-        if (!isInitialized) {
-            new JFXPanel();
-            isInitialized = true;
+    private synchronized void initializeJavaFX() {
+        if (javaFxInitialized) {
+            return;
+        }
+
+        try {
+            // Set system properties BEFORE initializing JavaFX
+            System.setProperty("prism.order", "sw");
+            System.setProperty("prism.allowhidpi", "false");
+            System.setProperty("javafx.animation.fullspeed", "true");
+            System.setProperty("prism.verbose", "false");
+            System.setProperty("java.awt.headless", "false");
+
+            // Force software rendering for better compatibility
+            System.setProperty("prism.forceGPU", "false");
+            System.setProperty("prism.text", "t2k");
+
+            // Initialize JavaFX Platform
+            new JFXPanel(); // This initializes the JavaFX Platform
+
+            // Wait a bit for platform to initialize
+            Thread.sleep(100);
+
+            javaFxInitialized = true;
+            System.out.println("✅ JavaFX initialized successfully");
+
+        } catch (Exception e) {
+            System.err.println("❌ JavaFX initialization failed: " + e.getMessage());
+            javaFxAvailable = false;
+            javaFxInitialized = true; // Mark as attempted
         }
     }
 
     /**
-     * Play a file - NO state tracking, pure function
-     * @param filePath Path to audio file
+     * Play a file with enhanced path resolution for JAR
      */
     public void play(String filePath) {
+        if (!javaFxAvailable) {
+            System.out.println("🎵 [SIMULATION] Playing: " + extractFileName(filePath));
+            return;
+        }
+
         Platform.runLater(() -> {
             try {
                 // Clean up previous player
@@ -49,45 +80,21 @@ public class AudioPlayer {
                     }
                 }
 
-                // Validate file
-                if (filePath == null || filePath.isEmpty()) {
-                    return;
-                }
+                // Enhanced file resolution for JAR deployment
+                File audioFile = resolveAudioFile(filePath);
 
-                File file = null;
-
-                if (filePath.startsWith("mp3/")) {
-                    file = new File("./" + filePath);  // ./mp3/filename.mp3
-                    if (!file.exists()) {
-                        file = new File(filePath);     // mp3/filename.mp3
-                    }
-                }
-
-                if (file == null || !file.exists()) {
-                    file = new File(filePath);
-                }
-
-                if (!file.exists()) {
+                if (audioFile == null || !audioFile.exists()) {
                     System.err.println("❌ Audio file not found: " + filePath);
                     return;
                 }
 
-                // Create and start new player
-                Media media = new Media(file.toURI().toString());
+                // Create media and player
+                String mediaUrl = audioFile.toURI().toString();
+                Media media = new Media(mediaUrl);
                 mediaPlayer = new MediaPlayer(media);
 
-                // Simple listeners - NO state updates
-                mediaPlayer.setOnReady(() -> {
-                    mediaPlayer.play();
-                });
-
-                mediaPlayer.setOnError(() -> {
-                    System.err.println("❌ Media player error for: " + filePath);
-                });
-
-                mediaPlayer.setOnEndOfMedia(() -> {
-                    // Silent end handling
-                });
+                // Setup event handlers
+                setupMediaPlayerHandlers(audioFile.getName());
 
             } catch (Exception e) {
                 System.err.println("❌ Error playing audio: " + e.getMessage());
@@ -96,39 +103,130 @@ public class AudioPlayer {
     }
 
     /**
-     * Pause - NO state tracking
+     * Enhanced file resolution for both development and JAR deployment
+     */
+    private File resolveAudioFile(String filePath) {
+        if (filePath == null || filePath.isEmpty()) {
+            return null;
+        }
+
+        // Try multiple resolution strategies
+        File[] candidates = {
+                // 1. Direct path (if absolute and exists)
+                new File(filePath),
+
+                // 2. Relative to working directory
+                new File("./mp3/" + extractFileName(filePath)),
+                new File("mp3/" + extractFileName(filePath)),
+
+                // 3. Relative to JAR location
+                new File(getJarDirectory(), "mp3/" + extractFileName(filePath)),
+
+                // 4. In resources (if copied to output)
+                new File("./src/main/resources/mp3/" + extractFileName(filePath))
+        };
+
+        for (File candidate : candidates) {
+            if (candidate.exists() && candidate.isFile()) {
+                System.out.println("🎵 Found audio file: " + candidate.getAbsolutePath());
+                return candidate;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Get the directory where the JAR is located
+     */
+    private File getJarDirectory() {
+        try {
+            String jarPath = AudioPlayer.class.getProtectionDomain()
+                    .getCodeSource().getLocation().toURI().getPath();
+            return new File(jarPath).getParentFile();
+        } catch (Exception e) {
+            return new File(".");
+        }
+    }
+
+    /**
+     * Setup media player event handlers
+     */
+    private void setupMediaPlayerHandlers(String fileName) {
+        mediaPlayer.setOnReady(() -> {
+            mediaPlayer.play();
+            System.out.println("🎵 Now playing: " + fileName);
+        });
+
+        mediaPlayer.setOnError(() -> {
+            System.err.println("❌ Media player error: " + mediaPlayer.getError());
+        });
+
+        mediaPlayer.setOnEndOfMedia(() -> {
+            System.out.println("🔚 Finished playing: " + fileName);
+        });
+    }
+
+    /**
+     * Extract filename from path
+     */
+    private String extractFileName(String filePath) {
+        if (filePath == null) return "unknown";
+
+        // Handle both Unix and Windows path separators
+        int lastSlash = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'));
+        return lastSlash >= 0 ? filePath.substring(lastSlash + 1) : filePath;
+    }
+
+    /**
+     * Pause playback
      */
     public void pause() {
+        if (!javaFxAvailable) {
+            System.out.println("⏸️ [SIMULATION] Paused");
+            return;
+        }
+
         Platform.runLater(() -> {
             if (mediaPlayer != null) {
                 try {
                     mediaPlayer.pause();
                 } catch (Exception e) {
-                    // Silent error handling
+                    System.err.println("Error pausing: " + e.getMessage());
                 }
             }
         });
     }
 
     /**
-     * Resume - NO state tracking
+     * Resume playback
      */
     public void resume() {
+        if (!javaFxAvailable) {
+            System.out.println("▶️ [SIMULATION] Resumed");
+            return;
+        }
+
         Platform.runLater(() -> {
             if (mediaPlayer != null) {
                 try {
                     mediaPlayer.play();
                 } catch (Exception e) {
-                    // Silent error handling
+                    System.err.println("Error resuming: " + e.getMessage());
                 }
             }
         });
     }
 
     /**
-     * Stop - NO state tracking
+     * Stop playback
      */
     public void stop() {
+        if (!javaFxAvailable) {
+            System.out.println("⏹️ [SIMULATION] Stopped");
+            return;
+        }
+
         Platform.runLater(() -> {
             try {
                 if (mediaPlayer != null) {
@@ -137,52 +235,32 @@ public class AudioPlayer {
                     mediaPlayer = null;
                 }
             } catch (Exception e) {
-                // Silent error handling
+                System.err.println("Error stopping: " + e.getMessage());
             }
         });
     }
 
-    // ===== COMPATIBILITY METHODS FOR PlaybackService =====
-
-    /**
-     * Compatibility method for PlaybackService
-     * Always returns false since state is managed by PlayerUI
-     * @return false (state managed externally)
-     */
+    // Compatibility methods
     public boolean isPlaying() {
-        return false; // State managed by PlayerUI, not AudioPlayer
+        return false; // State managed by PlayerUI
     }
 
-    /**
-     * Compatibility method for PlaybackService
-     * Always returns false since state is managed by PlayerUI
-     * @return false (state managed externally)
-     */
     public boolean isPaused() {
-        return false; // State managed by PlayerUI, not AudioPlayer
+        return false; // State managed by PlayerUI
     }
 
-    /**
-     * Compatibility method for PlaybackService
-     * @return null (not tracked)
-     */
     public String getCurrentFile() {
-        return null; // Not tracked by AudioPlayer
+        return null;
     }
 
-    /**
-     * Check if MediaPlayer exists (simple availability check)
-     * @return true if player exists, false otherwise
-     */
     public boolean hasMediaPlayer() {
-        return mediaPlayer != null;
+        return mediaPlayer != null && javaFxAvailable;
     }
 
-    /**
-     * Get status string for display (compatibility)
-     * @return Simple status
-     */
     public String getStatusString() {
+        if (!javaFxAvailable) {
+            return "JavaFX not available (using simulation)";
+        }
         return hasMediaPlayer() ? "Audio Ready" : "No Audio";
     }
 }

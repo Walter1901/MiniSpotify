@@ -533,9 +533,9 @@ public class PlayerUI {
         System.out.println("║                           🎛️  PLAYBACK MODE SELECTION                            ║");
         System.out.println("╠══════════════════════════════════════════════════════════════════════════════════╣");
         System.out.println("║                                                                                  ║");
-        System.out.println("║    1️⃣  Sequential   → Play songs in order                                       ║");
-        System.out.println("║    2️⃣  Shuffle      → Play songs randomly                                       ║");
-        System.out.println("║    3️⃣  Repeat       → Repeat current song                                       ║");
+        System.out.println("║    [1]  Sequential   → Play songs in order                                       ║");
+        System.out.println("║    [2]  Shuffle      → Play songs randomly                                       ║");
+        System.out.println("║    [3]  Repeat       → Repeat current song                                       ║");
         System.out.println("║                                                                                  ║");
         System.out.println("╚══════════════════════════════════════════════════════════════════════════════════╝");
         System.out.print("🎯 Enter your choice (1-3): ");

@@ -1,46 +1,32 @@
 @echo off
+chcp 65001 >nul 2>&1
 title MiniSpotify Server
-cls
 echo.
-echo ===================================================
-echo           🎵 MINI SPOTIFY SERVER 🎵
-echo ===================================================
+echo ╔══════════════════════════════════════════════════════════════╗
+echo ║                    🎵 MINI SPOTIFY SERVER 🎵                 ║
+echo ╚══════════════════════════════════════════════════════════════╝
 echo.
 
-REM Check Java
+REM Check if Java is available
 java -version >nul 2>&1
 if errorlevel 1 (
-    echo ❌ ERROR: Java is not installed or accessible
-    echo Install Java 17 or newer
+    echo ❌ Java not found! Please install Java 11 or higher.
     pause
     exit /b 1
 )
 
-REM Check JavaFX
-if not exist "javafx-lib" (
-    echo ❌ ERROR: javafx-lib folder not found
-    echo Download JavaFX SDK from https://openjfx.io/
-    pause
-    exit /b 1
-)
-
-REM Check that JAR exists
-if not exist "minispotify-server.jar" (
-    echo ❌ ERROR: minispotify-server.jar not found
-    pause
-    exit /b 1
-)
-
-echo 🚀 Starting server...
+echo 🚀 Starting MiniSpotify Server...
 echo.
 
-REM Launch server with JavaFX
-java --module-path "javafx-lib" ^
-     --add-modules javafx.controls,javafx.media,javafx.swing ^
-     --add-exports javafx.base/com.sun.javafx.runtime=ALL-UNNAMED ^
-     -Dfile.encoding=UTF-8 ^
-     -jar minispotify-server.jar
+REM JavaFX properties for compatibility
+set JAVAFX_OPTS=-Dprism.order=sw -Dprism.allowhidpi=false -Djavafx.animation.fullspeed=true -Dprism.verbose=false -Djava.awt.headless=false
+
+REM Memory settings
+set MEMORY_OPTS=-Xms256m -Xmx512m
+
+REM Run the server
+java %JAVAFX_OPTS% %MEMORY_OPTS% -jar minispotify-server.jar
 
 echo.
-echo Server stopped.
+echo 🛑 Server stopped.
 pause

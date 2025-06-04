@@ -15,7 +15,7 @@
             "album": "Le Fléau",
             "genre": "French Rap",
             "duration": 195,
-            "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\GIMS - Ciel (Official Lyrics Video).mp3"
+            "filePath": "mp3/GIMS - Ciel (Official Lyrics Video).mp3"
           },
           {
             "title": "NINAO",
@@ -23,7 +23,7 @@
             "album": "Le Fléau",
             "genre": "French Rap",
             "duration": 200,
-            "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\GIMS  - NINAO (Official Lyrics Vidéo).mp3"
+            "filePath": "mp3/GIMS  - NINAO (Official Lyrics Vidéo).mp3"
           },
           {
             "title": "Mussulo",
@@ -31,7 +31,7 @@
             "album": "Afro House Collection",
             "genre": "Electronic",
             "duration": 210,
-            "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\Dj Aka-m e Dj Malvado Feat Dody - Mussulo.mp3"
+            "filePath": "mp3/Dj Aka-m e Dj Malvado Feat Dody - Mussulo.mp3"
           },
           {
             "title": "Mood",
@@ -39,7 +39,7 @@
             "album": "Appartement 105",
             "genre": "French R\u0026B",
             "duration": 185,
-            "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\Keblack - Mood (Clip Officiel).mp3"
+            "filePath": "mp3/Keblack - Mood (Clip Officiel).mp3"
           },
           {
             "title": "Melrose Place",
@@ -47,7 +47,7 @@
             "album": "Tout va bien",
             "genre": "French Rap",
             "duration": 220,
-            "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\Keblack Ft. Guy2Bezbar - Melrose Place (Clip Officiel).mp3"
+            "filePath": "mp3/Keblack Ft. Guy2Bezbar - Melrose Place (Clip Officiel).mp3"
           }
         ]
       }
@@ -74,7 +74,7 @@
             "album": "Afro House Collection",
             "genre": "Electronic",
             "duration": 210,
-            "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\Dj Aka-m e Dj Malvado Feat Dody - Mussulo.mp3"
+            "filePath": "mp3/Dj Aka-m e Dj Malvado Feat Dody - Mussulo.mp3"
           },
           {
             "title": "NINAO",
@@ -82,7 +82,7 @@
             "album": "Le Fléau",
             "genre": "French Rap",
             "duration": 200,
-            "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\GIMS  - NINAO (Official Lyrics Vidéo).mp3"
+            "filePath": "mp3/GIMS  - NINAO (Official Lyrics Vidéo).mp3"
           },
           {
             "title": "Ciel",
@@ -90,7 +90,7 @@
             "album": "Le Fléau",
             "genre": "French Rap",
             "duration": 195,
-            "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\GIMS - Ciel (Official Lyrics Video).mp3"
+            "filePath": "mp3/GIMS - Ciel (Official Lyrics Video).mp3"
           },
           {
             "title": "Mood",
@@ -98,7 +98,7 @@
             "album": "Appartement 105",
             "genre": "French R\u0026B",
             "duration": 185,
-            "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\Keblack - Mood (Clip Officiel).mp3"
+            "filePath": "mp3/Keblack - Mood (Clip Officiel).mp3"
           },
           {
             "title": "Melrose Place",
@@ -106,7 +106,7 @@
             "album": "Tout va bien",
             "genre": "French Rap",
             "duration": 220,
-            "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\Keblack Ft. Guy2Bezbar - Melrose Place (Clip Officiel).mp3"
+            "filePath": "mp3/Keblack Ft. Guy2Bezbar - Melrose Place (Clip Officiel).mp3"
           }
         ]
       }
