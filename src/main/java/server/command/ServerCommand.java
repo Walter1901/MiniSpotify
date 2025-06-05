@@ -3,13 +3,13 @@ package server.command;
 import java.io.PrintWriter;
 
 /**
- * Interface pour le pattern Command côté serveur
+ * Interface for server-side Command pattern
  */
 public interface ServerCommand {
     /**
-     * Exécute la commande
-     * @param out Writer pour envoyer la réponse au client
-     * @return true si l'exécution s'est bien passée, false sinon
-     */
+     * Execute the command
+     * @param out Writer to send response to client
+     * @return true if successful, false otherwise
+     * */
     boolean execute(PrintWriter out);
 }

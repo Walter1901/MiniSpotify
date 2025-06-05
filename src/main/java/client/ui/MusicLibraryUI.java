@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Scanner;
 
 /**
- * Interface utilisateur pour la bibliothèque musicale
+ * User interface for music library management
  */
 public class MusicLibraryUI {
     private UserInterface mainUI;
@@ -17,7 +17,7 @@ public class MusicLibraryUI {
     private Scanner scanner;
 
     /**
-     * Constructeur
+     * Constructor
      */
     public MusicLibraryUI(UserInterface mainUI, BufferedReader in, PrintWriter out, Scanner scanner) {
         this.mainUI = mainUI;
@@ -27,7 +27,7 @@ public class MusicLibraryUI {
     }
 
     /**
-     * Gère la bibliothèque musicale
+     * Manage the music library
      */
     public void manageMusicLibrary() throws IOException {
         boolean back = false;
@@ -64,7 +64,7 @@ public class MusicLibraryUI {
     }
 
     /**
-     * Affiche toutes les chansons
+     * Display all songs in the library
      */
     private void displayAllSongs() throws IOException {
         System.out.println("==================================================================================");
@@ -88,7 +88,7 @@ public class MusicLibraryUI {
     }
 
     /**
-     * Recherche par titre
+     * Search for songs by title
      */
     private void searchByTitle() throws IOException {
         System.out.println("==================================================================================");
@@ -113,7 +113,7 @@ public class MusicLibraryUI {
     }
 
     /**
-     * Recherche par artiste
+     * Search for songs by artist
      */
     private void searchByArtist() throws IOException {
         System.out.println("==================================================================================");

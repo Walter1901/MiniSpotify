@@ -10,7 +10,7 @@ import java.util.Map;
 import java.util.Scanner;
 
 /**
- * Interface utilisateur pour les fonctionnalités sociales
+ * User interface for social features
  */
 public class SocialUI {
     private UserInterface mainUI;
@@ -20,7 +20,7 @@ public class SocialUI {
     private PlayerUI playerUI;
 
     /**
-     * Constructeur
+     * Constructor
      */
     public SocialUI(UserInterface mainUI, BufferedReader in, PrintWriter out, Scanner scanner, PlayerUI playerUI) {
         this.mainUI = mainUI;
@@ -31,7 +31,7 @@ public class SocialUI {
     }
 
     /**
-     * Gère les fonctionnalités sociales
+     * Manage social features such as following users, viewing shared playlists, etc.
      */
     public void manageSocialFeatures() throws IOException {
         boolean back = false;
@@ -70,7 +70,7 @@ public class SocialUI {
     }
 
     /**
-     * Suit un nouvel utilisateur
+     * Follow a user by username
      */
     private void followUser() throws IOException {
         System.out.println("==================================================================================");
@@ -87,24 +87,24 @@ public class SocialUI {
     }
 
     /**
-     * Affiche la liste des utilisateurs suivis
+     * Display the list of users followed by the current user
      */
     private void viewFollowedUsers() throws IOException {
         System.out.println("==================================================================================");
         System.out.println("Users you are following:");
         System.out.println("==================================================================================");
 
-        // Envoyer une commande au serveur pour obtenir la liste des utilisateurs suivis
+        // Send a command to the server to obtain the list of tracked users
         out.println("GET_FOLLOWED_USERS");
 
-        // Lire les réponses du serveur
+        // Read server responses
         String response;
         List<String> followedUsers = new ArrayList<>();
         while (!(response = in.readLine()).equals("END")) {
             followedUsers.add(response);
         }
 
-        // Afficher les utilisateurs suivis
+        // Display the list of followed users
         if (followedUsers.isEmpty()) {
             System.out.println("You are not following any users.");
         } else {
@@ -116,12 +116,12 @@ public class SocialUI {
         }
         System.out.println("==================================================================================");
 
-        // Proposer des actions sur ces utilisateurs
+        // Propose actions for these users
         if (!followedUsers.isEmpty()) {
-            System.out.println("Do you want to unfollow a user? (y/n)");
+            System.out.println("Do you want to unfollow a user? (yes / no)");
             String option = scanner.nextLine().trim().toLowerCase();
 
-            if (option.equals("y")) {
+            if (option.equals("yes")) {
                 System.out.print("Enter the number of the user to unfollow: ");
                 try {
                     int userIndex = Integer.parseInt(scanner.nextLine().trim()) - 1;
@@ -143,21 +143,21 @@ public class SocialUI {
     }
 
     /**
-     * Affiche les playlists partagées par les utilisateurs suivis
+     * Display shared playlists from users the current user follows
      */
     private void viewSharedPlaylists() throws IOException {
         System.out.println("==================================================================================");
         System.out.println("Shared playlists from users you follow:");
         System.out.println("==================================================================================");
 
-        // Envoyer une commande au serveur pour obtenir les playlists partagées
+        // Send a command to the server to obtain shared playlists
         out.println("GET_SHARED_PLAYLISTS");
 
         String response;
         Map<Integer, String[]> playlists = new HashMap<>(); // [playlistName, ownerUsername]
         int index = 1;
 
-        // Format de réponse attendu: "PlaylistName|OwnerUsername"
+        // Expected response format: “PlaylistName|OwnerUsername”.
         while (!(response = in.readLine()).equals("END")) {
             String[] parts = response.split("\\|");
             if (parts.length >= 2) {
@@ -175,7 +175,7 @@ public class SocialUI {
             return;
         }
 
-        // Menu d'actions pour les playlists partagées
+        // Action menu for shared playlists
         System.out.println("==================================================================================");
         System.out.println("Options:");
         System.out.println("1. View songs in a shared playlist");
@@ -204,7 +204,7 @@ public class SocialUI {
     }
 
     /**
-     * Définit les préférences de partage de playlists
+     * Defines the user's preferences for sharing playlists
      */
     private void setSharingPreferences() throws IOException {
         System.out.println("==================================================================================");
@@ -226,7 +226,7 @@ public class SocialUI {
     }
 
     /**
-     * Affiche les chansons d'une playlist partagée
+     * Display the songs in a shared playlist
      */
     private void viewSharedPlaylistSongs(Map<Integer, String[]> playlists) throws IOException {
         System.out.println("==================================================================================");
@@ -258,7 +258,7 @@ public class SocialUI {
 
             int songIndex = 1;
             while (!(response = in.readLine()).equals("END")) {
-                // Format attendu: titre|artiste|album|genre|durée
+                // Expected format: title|artist|album|genre|duration
                 String[] songData = response.split("\\|");
                 if (songData.length > 0) {
                     String title = songData[0];
@@ -284,7 +284,7 @@ public class SocialUI {
     }
 
     /**
-     * Copie une playlist partagée dans la bibliothèque de l'utilisateur
+     * Copy a shared playlist to the user's library
      */
     private void copySharedPlaylist(Map<Integer, String[]> playlists) throws IOException {
         System.out.println("==================================================================================");
@@ -319,7 +319,7 @@ public class SocialUI {
     }
 
     /**
-     * Joue une playlist partagée
+     * Play a shared playlist
      */
     private void playSharedPlaylist(Map<Integer, String[]> playlists) throws IOException {
         System.out.println("==================================================================================");
@@ -348,7 +348,7 @@ public class SocialUI {
                 return;
             }
 
-            // Démarrer la lecture - réutilise la logique du PlayerUI
+            // Start playback - reuses PlayerUI logic
             playerUI.startPlayerWithLoadedPlaylist(playlistName, ownerUsername);
 
         } catch (NumberFormatException e) {

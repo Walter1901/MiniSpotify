@@ -8,7 +8,7 @@ import javafx.scene.media.MediaPlayer;
 import java.io.File;
 
 /**
- * AudioPlayer
+ * AudioPlayer - Clean version without unused compatibility methods
  * Robust JavaFX initialization and file path handling
  */
 public class AudioPlayer {
@@ -240,23 +240,16 @@ public class AudioPlayer {
         });
     }
 
-    // Compatibility methods
-    public boolean isPlaying() {
-        return false; // State managed by PlayerUI
-    }
-
-    public boolean isPaused() {
-        return false; // State managed by PlayerUI
-    }
-
-    public String getCurrentFile() {
-        return null;
-    }
-
+    /**
+     * Check if media player is available
+     */
     public boolean hasMediaPlayer() {
         return mediaPlayer != null && javaFxAvailable;
     }
 
+    /**
+     * Get status string for debugging
+     */
     public String getStatusString() {
         if (!javaFxAvailable) {
             return "JavaFX not available (using simulation)";

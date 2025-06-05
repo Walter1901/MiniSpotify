@@ -6,7 +6,7 @@ import java.io.PrintWriter;
 import java.util.Scanner;
 
 /**
- * Interface utilisateur pour l'authentification
+ * User interface for authentication
  */
 public class AuthenticationUI {
     private UserInterface mainUI;
@@ -15,7 +15,7 @@ public class AuthenticationUI {
     private Scanner scanner;
 
     /**
-     * Constructeur
+     * Constructor
      */
     public AuthenticationUI(UserInterface mainUI, BufferedReader in, PrintWriter out, Scanner scanner) {
         this.mainUI = mainUI;
@@ -25,7 +25,7 @@ public class AuthenticationUI {
     }
 
     /**
-     * Affiche le menu initial
+     * Display the initial menu
      */
     public void showInitialMenu() throws IOException {
         boolean validOption = false;
@@ -54,13 +54,13 @@ public class AuthenticationUI {
                     break;
                 default:
                     System.out.println("Invalid option. Please try again.");
-                    // Continue la boucle
+
             }
         }
     }
 
     /**
-     * Quitte l'application
+     * Exit Application
      */
     private void exitApplication() {
         System.out.println("==================================================================================");
@@ -70,7 +70,7 @@ public class AuthenticationUI {
     }
 
     /**
-     * Gère la création de compte
+     * Manages account creation
      */
     public void createAccount() throws IOException {
         boolean accountCreated = false;
@@ -94,29 +94,29 @@ public class AuthenticationUI {
                 System.out.println("==================================================================================");
                 mainUI.setCurrentUser(username);
                 mainUI.setLoggedIn(true);
-                accountCreated = true; // Sortir de la boucle
+                accountCreated = true;
             } else {
                 System.out.println("==================================================================================");
                 System.out.println("Error: " + response);
                 System.out.println("==================================================================================");
 
-                // Demander à l'utilisateur s'il veut réessayer ou revenir au menu principal
-                System.out.println("Do you want to try again? (y/n): ");
+                // Ask user to try again or return to main menu
+                System.out.println("Do you want to try again? (yes / no): ");
                 String retry = scanner.nextLine().trim().toLowerCase();
-                if (!retry.equals("y")) {
-                    // Retour au menu principal
+                if (!retry.equals("yes")) {
+                    // Back to main menu
                     return;
                 }
-                // Sinon, continue la boucle
+                // Otherwise, continue the loop
             }
         }
     }
 
     /**
-     * Gère la connexion avec limite de tentatives
+     * Manages connection with limit of attempts
      */
     public void login() throws IOException {
-        // Maximum de 2 tentatives
+        // Maximum 2 attempts
         int maxAttempts = 2;
         int attempts = 0;
 
@@ -145,19 +145,19 @@ public class AuthenticationUI {
 
                 attempts++;
 
-                // Si c'était la dernière tentative autorisée
+                // If this was the last authorized attempt
                 if (attempts >= maxAttempts) {
                     System.out.println("==================================================================================");
                     System.out.println("Too many failed attempts. Returning to main menu.");
                     System.out.println("==================================================================================");
-                    // Ne rien faire d'autre, la méthode va se terminer et retourner au menu principal
+                    // Do nothing else, the method will terminate and return to the main menu.
                 }
             }
         }
     }
 
     /**
-     * Gère la déconnexion
+     * Manage disconnection
      */
     public void logout() {
         out.println("LOGOUT");
@@ -167,13 +167,11 @@ public class AuthenticationUI {
         System.out.println("You have been logged out.");
         System.out.println("==================================================================================");
 
-        // Ajouter un petit délai pour que l'utilisateur puisse lire le message
+        // Add a small delay for the user to read the message
         try {
-            Thread.sleep(1500); // Attendre 1.5 secondes
+            Thread.sleep(1500); // Wait 1.5 seconds
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
-
-        // IMPORTANT: NE PAS appeler mainUI.setExitRequested(true) ici !
     }
 }
