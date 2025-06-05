@@ -128,9 +128,9 @@ public class ClientApp {
         System.out.println("╔══════════════════════════════════════════════════════════════════════════════════╗");
         System.out.println("║                            ❌ CONNECTION FAILED                                  ║");
         System.out.println("║                                                                                  ║");
-        System.out.println("║  • Please ensure the server is running                                          ║");
-        System.out.println("║  • Check your network connection                                                ║");
-        System.out.println("║  • Verify server address and port                                               ║");
+        System.out.println("║  • Please ensure the server is running                                           ║");
+        System.out.println("║  • Check your network connection                                                 ║");
+        System.out.println("║  • Verify server address and port                                                ║");
         System.out.println("╚══════════════════════════════════════════════════════════════════════════════════╝");
     }
 
@@ -140,7 +140,7 @@ public class ClientApp {
     private void showNotConnectedError() {
         System.out.println("╔══════════════════════════════════════════════════════════════════════════════════╗");
         System.out.println("║                              ⚠️  NOT CONNECTED                                   ║");
-        System.out.println("║                     Cannot start UI - not connected to server                   ║");
+        System.out.println("║                     Cannot start UI - not connected to server                    ║");
         System.out.println("╚══════════════════════════════════════════════════════════════════════════════════╝");
     }
 

@@ -81,7 +81,7 @@ public class PlayerUI {
 
         // Get playlist name from user
         System.out.println("==================================================================================");
-        System.out.print("Enter the name of the playlist to play: ");
+        System.out.println("Enter the name of the playlist to play: ");
         System.out.println("==================================================================================");
         String playlistName = scanner.nextLine().trim();
 
@@ -290,7 +290,7 @@ public class PlayerUI {
         // Status line
         String statusIcon = getStatusIcon();
         String statusText = getStatusText();
-        System.out.printf("│ Status: %s %-65s │%n", statusIcon, statusText);
+        System.out.printf("│ Status: %s %-65s    │%n", statusIcon, statusText);
 
         // Current song line
         if (currentSongTitle != null) {
@@ -298,9 +298,9 @@ public class PlayerUI {
             if (songDisplay.length() > 68) {
                 songDisplay = songDisplay.substring(0, 65) + "...";
             }
-            System.out.printf("│ Song:   %-69s │%n", songDisplay);
+            System.out.printf("│ Song:   %-69s   │%n", songDisplay);
         } else {
-            System.out.printf("│ Song:   %-69s │%n", "No song selected");
+            System.out.printf("│ Song:   %-69s     │%n", "No song selected");
         }
 
         System.out.println("└──────────────────────────────────────────────────────────────────────────────────┘");
