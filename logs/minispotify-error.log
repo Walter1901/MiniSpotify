@@ -1,0 +1,2 @@
+09:35:12.350 [pool-1-thread-1] ERROR MINISPOTIFY - ❌ Operation failed: Command: LOGIN - Command failed (321ms)
+09:35:30.564 [pool-1-thread-1] ERROR MINISPOTIFY - ❌ Operation failed: Command: ADD_SONG_TO_PLAYLIST - Command failed (1ms)

@@ -1,0 +1,118 @@
+[
+  {
+    "username": "Walter1901",
+    "passwordHash": "06dTlVxOLmWRnpIAa0PRfA\u003d\u003d:IAjpQAgZP4mUpIthM0HTbrkX9VzpIUTiQ3glVCQ1NFk\u003d",
+    "accountType": "premium",
+    "sharePlaylistsPublicly": true,
+    "playlists": [
+      {
+        "name": "Summer2025",
+        "type": "standard",
+        "songs": [
+          {
+            "title": "Ciel",
+            "artist": "GIMS",
+            "album": "Le Fléau",
+            "genre": "French Rap",
+            "duration": 195,
+            "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\GIMS - Ciel (Official Lyrics Video).mp3"
+          },
+          {
+            "title": "NINAO",
+            "artist": "GIMS",
+            "album": "Le Fléau",
+            "genre": "French Rap",
+            "duration": 200,
+            "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\GIMS  - NINAO (Official Lyrics Vidéo).mp3"
+          },
+          {
+            "title": "Mussulo",
+            "artist": "Dj Aka-m e Dj Malvado Feat Dody",
+            "album": "Afro House Collection",
+            "genre": "Electronic",
+            "duration": 210,
+            "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\Dj Aka-m e Dj Malvado Feat Dody - Mussulo.mp3"
+          },
+          {
+            "title": "Mood",
+            "artist": "Keblack",
+            "album": "Appartement 105",
+            "genre": "French R\u0026B",
+            "duration": 185,
+            "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\Keblack - Mood (Clip Officiel).mp3"
+          },
+          {
+            "title": "Melrose Place",
+            "artist": "Keblack Ft. Guy2Bezbar",
+            "album": "Tout va bien",
+            "genre": "French Rap",
+            "duration": 220,
+            "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\Keblack Ft. Guy2Bezbar - Melrose Place (Clip Officiel).mp3"
+          }
+        ]
+      }
+    ],
+    "followedUsers": [
+      "Walter"
+    ]
+  },
+  {
+    "username": "Walter",
+    "passwordHash": "pIogrzrpB4CpHFbG8sy9Sw\u003d\u003d:eIJW5QH0fHAxgsuskBalg1tOaXE9RJLREN7ZEV2Fpnw\u003d",
+    "accountType": "free",
+    "sharePlaylistsPublicly": true,
+    "playlists": [
+      {
+        "name": "Summer2025",
+        "type": "collaborative",
+        "owner": "Walter",
+        "collaborators": [],
+        "songs": [
+          {
+            "title": "Mussulo",
+            "artist": "Dj Aka-m e Dj Malvado Feat Dody",
+            "album": "Afro House Collection",
+            "genre": "Electronic",
+            "duration": 210,
+            "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\Dj Aka-m e Dj Malvado Feat Dody - Mussulo.mp3"
+          },
+          {
+            "title": "NINAO",
+            "artist": "GIMS",
+            "album": "Le Fléau",
+            "genre": "French Rap",
+            "duration": 200,
+            "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\GIMS  - NINAO (Official Lyrics Vidéo).mp3"
+          },
+          {
+            "title": "Ciel",
+            "artist": "GIMS",
+            "album": "Le Fléau",
+            "genre": "French Rap",
+            "duration": 195,
+            "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\GIMS - Ciel (Official Lyrics Video).mp3"
+          },
+          {
+            "title": "Mood",
+            "artist": "Keblack",
+            "album": "Appartement 105",
+            "genre": "French R\u0026B",
+            "duration": 185,
+            "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\Keblack - Mood (Clip Officiel).mp3"
+          },
+          {
+            "title": "Melrose Place",
+            "artist": "Keblack Ft. Guy2Bezbar",
+            "album": "Tout va bien",
+            "genre": "French Rap",
+            "duration": 220,
+            "filePath": "C:\\Users\\walte\\IdeaProjects\\MiniSpotify\\src\\main\\resources\\mp3\\Keblack Ft. Guy2Bezbar - Melrose Place (Clip Officiel).mp3"
+          }
+        ]
+      }
+    ],
+    "followedUsers": [
+      "Walter1901"
+    ]
+  }
+]

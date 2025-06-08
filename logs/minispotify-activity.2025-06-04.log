@@ -1,0 +1,231 @@
+2025-06-04 08:56:39 - User: SYSTEM | Action: MUSIC_LIBRARY_LOADED | Details: 5 songs
+2025-06-04 08:56:39 - User: SYSTEM | Action: SERVER_STARTED | Details: Port: 12345
+2025-06-04 08:56:44 - User: SYSTEM | Action: CLIENT_CONNECTED | Details: 127.0.0.1
+2025-06-04 08:56:44 - User: SYSTEM | Action: CLIENT_CONNECTED | Details: 127.0.0.1
+2025-06-04 08:57:08 - User: Walter1901 | Action: REGISTRATION_ATTEMPT | Details: Premium
+2025-06-04 08:57:08 - User: Walter1901 | Action: REGISTRATION_SUCCESS | Details: Premium
+2025-06-04 08:57:08 - User: Walter1901 | Action: AUTO_LOGIN_AFTER_REGISTRATION
+2025-06-04 08:57:22 - User: Walter1901 | Action: SHARING_PREFERENCES_SET | Details: true
+2025-06-04 08:57:37 - User: Walter1901 | Action: SHARING_PREFERENCES_SET | Details: true
+2025-06-04 08:57:52 - User: Walter1901 | Action: SHARING_PREFERENCES_SET | Details: true
+2025-06-04 08:57:57 - User: Walter1901 | Action: LOGOUT
+2025-06-04 08:58:08 - User: Walter | Action: REGISTRATION_ATTEMPT | Details: Free
+2025-06-04 08:58:08 - User: Walter | Action: REGISTRATION_SUCCESS | Details: Free
+2025-06-04 08:58:08 - User: Walter | Action: AUTO_LOGIN_AFTER_REGISTRATION
+2025-06-04 08:58:20 - User: Walter | Action: REGISTRATION_ATTEMPT | Details: free
+2025-06-04 08:58:20 - User: Walter | Action: REGISTRATION_FAILED | Details: Username already exists
+2025-06-04 08:58:29 - User: Walter | Action: USER_FOLLOWED | Details: Walter1901
+2025-06-04 08:58:32 - User: Walter | Action: SHARING_PREFERENCES_SET | Details: true
+2025-06-04 08:58:48 - User: Walter | Action: COLLAB_PLAYLIST_CREATED | Details: Summer2025
+2025-06-04 08:59:09 - User: Walter | Action: SONG_ADDED | Details: Mussulo -> Summer2025
+2025-06-04 08:59:18 - User: Walter | Action: SONG_ADDED | Details: NINAO -> Summer2025
+2025-06-04 08:59:26 - User: Walter | Action: SONG_ADDED | Details: Ciel -> Summer2025
+2025-06-04 08:59:33 - User: Walter | Action: SONG_ADDED | Details: Mood -> Summer2025
+2025-06-04 08:59:40 - User: Walter | Action: SONG_ADDED | Details: Melrose Place -> Summer2025
+2025-06-04 09:00:03 - User: Walter | Action: PLAYLIST_LOADED | Details: Summer2025
+2025-06-04 09:00:05 - User: Walter | Action: PLAYBACK_MODE_SET | Details: Sequential
+2025-06-04 09:00:13 - User: Walter | Action: PLAYER_PLAY | Details: 
+2025-06-04 09:00:16 - User: Walter | Action: PLAYER_PAUSE
+2025-06-04 09:00:21 - User: Walter | Action: PLAYER_PLAY | Details: resume
+2025-06-04 09:00:24 - User: Walter | Action: PLAYER_NEXT
+2025-06-04 09:00:30 - User: Walter | Action: PLAYER_PAUSE
+2025-06-04 09:00:33 - User: Walter | Action: PLAYER_PLAY | Details: resume
+2025-06-04 09:00:36 - User: Walter | Action: PLAYER_STOP
+2025-06-04 09:00:36 - User: Walter | Action: PLAYER_EXIT
+2025-06-04 09:00:43 - User: Walter | Action: SESSION_ENDED
+2025-06-04 09:00:43 - User: SYSTEM | Action: CLIENT_DISCONNECTED | Details: 127.0.0.1
+2025-06-04 09:00:43 - User: SYSTEM | Action: SERVER_STOPPED
+2025-06-04 09:00:43 - User: SYSTEM | Action: SERVER_STOPPED
+2025-06-04 09:01:08 - User: SYSTEM | Action: MUSIC_LIBRARY_LOADED | Details: 5 songs
+2025-06-04 09:01:08 - User: SYSTEM | Action: SERVER_STARTED | Details: Port: 12345
+2025-06-04 09:01:09 - User: SYSTEM | Action: CLIENT_CONNECTED | Details: 127.0.0.1
+2025-06-04 09:01:09 - User: SYSTEM | Action: CLIENT_CONNECTED | Details: 127.0.0.1
+2025-06-04 09:01:18 - User: a | Action: REGISTRATION_ATTEMPT | Details: a
+2025-06-04 09:01:18 - User: a | Action: REGISTRATION_FAILED | Details: Password must be at least 6 characters
+2025-06-04 09:01:25 - User: Walter1901 | Action: LOGIN_ATTEMPT
+2025-06-04 09:01:25 - User: Walter1901 | Action: LOGIN_SUCCESS
+2025-06-04 09:01:31 - User: Walter1901 | Action: USER_FOLLOWED | Details: Walter
+2025-06-04 09:01:41 - User: Walter1901 | Action: PLAYLIST_COPIED | Details: Summer2025 -> Summer2025
+2025-06-04 09:01:51 - User: Walter1901 | Action: LOGOUT
+2025-06-04 09:01:54 - User: SYSTEM | Action: CLIENT_DISCONNECTED | Details: 127.0.0.1
+2025-06-04 09:02:00 - User: SYSTEM | Action: SERVER_STOPPED
+2025-06-04 09:02:00 - User: SYSTEM | Action: SERVER_STOPPED
+2025-06-04 09:19:56 - User: SYSTEM | Action: MUSIC_LIBRARY_LOADED | Details: 5 songs
+2025-06-04 09:19:56 - User: SYSTEM | Action: SERVER_STARTED | Details: Port: 12345
+2025-06-04 09:20:01 - User: SYSTEM | Action: CLIENT_CONNECTED | Details: 127.0.0.1
+2025-06-04 09:20:01 - User: SYSTEM | Action: CLIENT_CONNECTED | Details: 127.0.0.1
+2025-06-04 09:20:12 - User: Walter1901 | Action: LOGIN_ATTEMPT
+2025-06-04 09:20:12 - User: Walter1901 | Action: LOGIN_SUCCESS
+2025-06-04 09:20:37 - User: Walter1901 | Action: LOGOUT
+2025-06-04 09:20:44 - User: Walter | Action: LOGIN_ATTEMPT
+2025-06-04 09:20:44 - User: Walter | Action: LOGIN_SUCCESS
+2025-06-04 09:20:50 - User: Walter | Action: LOGIN_ATTEMPT
+2025-06-04 09:20:50 - User: Walter | Action: LOGIN_SUCCESS
+2025-06-04 09:20:59 - User: Walter | Action: COLLABORATOR_ADDED | Details: Walter1901 to Summer2025
+2025-06-04 09:21:24 - User: Walter | Action: SESSION_ENDED
+2025-06-04 09:21:24 - User: SYSTEM | Action: CLIENT_DISCONNECTED | Details: 127.0.0.1
+2025-06-04 09:21:26 - User: SYSTEM | Action: CLIENT_CONNECTED | Details: 127.0.0.1
+2025-06-04 09:21:26 - User: SYSTEM | Action: CLIENT_CONNECTED | Details: 127.0.0.1
+2025-06-04 09:21:37 - User: Walter | Action: LOGIN_ATTEMPT
+2025-06-04 09:21:37 - User: Walter | Action: LOGIN_SUCCESS
+2025-06-04 09:21:41 - User: Walter | Action: SESSION_ENDED
+2025-06-04 09:21:41 - User: SYSTEM | Action: CLIENT_DISCONNECTED | Details: 127.0.0.1
+2025-06-04 09:21:41 - User: SYSTEM | Action: SERVER_STOPPED
+2025-06-04 09:21:41 - User: SYSTEM | Action: SERVER_STOPPED
+2025-06-04 09:41:58 - User: SYSTEM | Action: MUSIC_LIBRARY_LOADED | Details: 5 songs
+2025-06-04 09:41:58 - User: SYSTEM | Action: SERVER_STARTED | Details: Port: 12345
+2025-06-04 09:42:03 - User: SYSTEM | Action: CLIENT_CONNECTED | Details: 127.0.0.1
+2025-06-04 09:42:03 - User: SYSTEM | Action: CLIENT_CONNECTED | Details: 127.0.0.1
+2025-06-04 09:42:15 - User: Walter1901 | Action: LOGIN_ATTEMPT
+2025-06-04 09:42:16 - User: Walter1901 | Action: LOGIN_SUCCESS
+2025-06-04 09:42:30 - User: Walter1901 | Action: SONG_REORDERED | Details: Summer2025 (2->1)
+2025-06-04 09:42:42 - User: Walter1901 | Action: SONG_REORDERED | Details: Summer2025 (1->0)
+2025-06-04 09:43:01 - User: Walter1901 | Action: PLAYLIST_LOADED | Details: Summer2025
+2025-06-04 09:43:02 - User: Walter1901 | Action: PLAYBACK_MODE_SET | Details: Sequential
+2025-06-04 09:43:06 - User: Walter1901 | Action: PLAYER_PLAY | Details: 
+2025-06-04 09:43:10 - User: Walter1901 | Action: PLAYER_PAUSE
+2025-06-04 09:43:12 - User: Walter1901 | Action: PLAYER_PLAY | Details: resume
+2025-06-04 09:43:14 - User: Walter1901 | Action: PLAYER_NEXT
+2025-06-04 09:43:17 - User: Walter1901 | Action: PLAYER_NEXT
+2025-06-04 09:43:18 - User: Walter1901 | Action: PLAYER_PAUSE
+2025-06-04 09:43:20 - User: Walter1901 | Action: PLAYER_PLAY | Details: resume
+2025-06-04 09:43:24 - User: Walter1901 | Action: PLAYER_NEXT
+2025-06-04 09:43:27 - User: Walter1901 | Action: PLAYER_NEXT
+2025-06-04 09:43:31 - User: Walter1901 | Action: PLAYER_STOP
+2025-06-04 09:43:31 - User: Walter1901 | Action: PLAYER_EXIT
+2025-06-04 09:43:56 - User: Walter1901 | Action: LOGOUT
+2025-06-04 09:43:59 - User: SYSTEM | Action: CLIENT_DISCONNECTED | Details: 127.0.0.1
+2025-06-04 09:43:59 - User: SYSTEM | Action: SERVER_STOPPED
+2025-06-04 09:43:59 - User: SYSTEM | Action: SERVER_STOPPED
+2025-06-04 10:22:11 - User: SYSTEM | Action: MUSIC_LIBRARY_LOADED | Details: 5 songs
+2025-06-04 10:22:11 - User: SYSTEM | Action: SERVER_ERROR | Details: Failed to start server
+2025-06-04 10:22:11 - User: SYSTEM | Action: SERVER_STOPPED
+2025-06-04 10:23:12 - User: SYSTEM | Action: MUSIC_LIBRARY_LOADED | Details: 5 songs
+2025-06-04 10:23:12 - User: SYSTEM | Action: SERVER_ERROR | Details: Failed to start server
+2025-06-04 10:23:12 - User: SYSTEM | Action: SERVER_STOPPED
+2025-06-04 10:27:32 - User: SYSTEM | Action: MUSIC_LIBRARY_LOADED | Details: 5 songs
+2025-06-04 10:27:32 - User: SYSTEM | Action: SERVER_STARTED | Details: Port: 12345
+2025-06-04 10:27:48 - User: SYSTEM | Action: CLIENT_CONNECTED | Details: 127.0.0.1
+2025-06-04 10:27:48 - User: SYSTEM | Action: CLIENT_CONNECTED | Details: 127.0.0.1
+2025-06-04 10:28:06 - User: Walter1901 | Action: LOGIN_ATTEMPT
+2025-06-04 10:28:06 - User: Walter1901 | Action: LOGIN_SUCCESS
+2025-06-04 10:28:11 - User: Walter1901 | Action: PLAYLIST_LOADED | Details: Summer2025
+2025-06-04 10:28:13 - User: Walter1901 | Action: PLAYBACK_MODE_SET | Details: Sequential
+2025-06-04 10:28:16 - User: Walter1901 | Action: PLAYER_PLAY | Details: 
+2025-06-04 10:28:20 - User: Walter1901 | Action: PLAYER_PAUSE
+2025-06-04 10:29:20 - User: Walter1901 | Action: SESSION_ENDED
+2025-06-04 10:29:20 - User: SYSTEM | Action: CLIENT_DISCONNECTED | Details: 127.0.0.1
+2025-06-04 10:30:50 - User: SYSTEM | Action: CLIENT_CONNECTED | Details: 127.0.0.1
+2025-06-04 10:30:50 - User: SYSTEM | Action: CLIENT_CONNECTED | Details: 127.0.0.1
+2025-06-04 10:31:01 - User: Walter1901 | Action: LOGIN_ATTEMPT
+2025-06-04 10:31:01 - User: Walter1901 | Action: LOGIN_SUCCESS
+2025-06-04 10:31:05 - User: Walter1901 | Action: PLAYLIST_LOADED | Details: Summer2025
+2025-06-04 10:31:07 - User: Walter1901 | Action: PLAYBACK_MODE_SET | Details: Sequential
+2025-06-04 10:31:09 - User: Walter1901 | Action: PLAYER_PLAY | Details: 
+2025-06-04 10:31:16 - User: Walter1901 | Action: PLAYER_PAUSE
+2025-06-04 10:31:18 - User: Walter1901 | Action: PLAYER_STOP
+2025-06-04 10:31:18 - User: Walter1901 | Action: PLAYER_EXIT
+2025-06-04 10:31:20 - User: Walter1901 | Action: LOGOUT
+2025-06-04 10:31:24 - User: SYSTEM | Action: CLIENT_DISCONNECTED | Details: 127.0.0.1
+2025-06-04 10:31:24 - User: SYSTEM | Action: SERVER_STOPPED
+2025-06-04 10:31:24 - User: SYSTEM | Action: SERVER_STOPPED
+2025-06-04 10:40:23 - User: SYSTEM | Action: MUSIC_LIBRARY_LOADED | Details: 5 songs
+2025-06-04 10:40:23 - User: SYSTEM | Action: SERVER_STARTED | Details: Port: 12345
+2025-06-04 10:42:50 - User: SYSTEM | Action: CLIENT_CONNECTED | Details: 127.0.0.1
+2025-06-04 10:42:50 - User: SYSTEM | Action: CLIENT_CONNECTED | Details: 127.0.0.1
+2025-06-04 10:43:50 - User: SYSTEM | Action: CLIENT_DISCONNECTED | Details: 127.0.0.1
+2025-06-04 10:53:14 - User: SYSTEM | Action: SERVER_STOPPED
+2025-06-04 10:53:14 - User: SYSTEM | Action: SERVER_STOPPED
+2025-06-04 10:53:17 - User: SYSTEM | Action: MUSIC_LIBRARY_LOADED | Details: 5 songs
+2025-06-04 10:53:17 - User: SYSTEM | Action: SERVER_STARTED | Details: Port: 12345
+2025-06-04 10:53:25 - User: SYSTEM | Action: CLIENT_CONNECTED | Details: 127.0.0.1
+2025-06-04 10:53:25 - User: SYSTEM | Action: CLIENT_CONNECTED | Details: 127.0.0.1
+2025-06-04 10:54:25 - User: SYSTEM | Action: CLIENT_DISCONNECTED | Details: 127.0.0.1
+2025-06-04 10:58:27 - User: SYSTEM | Action: SERVER_STOPPED
+2025-06-04 10:58:27 - User: SYSTEM | Action: SERVER_STOPPED
+2025-06-04 10:58:31 - User: SYSTEM | Action: MUSIC_LIBRARY_LOADED | Details: 5 songs
+2025-06-04 10:58:31 - User: SYSTEM | Action: SERVER_STARTED | Details: Port: 12345
+2025-06-04 10:58:36 - User: SYSTEM | Action: CLIENT_CONNECTED | Details: 127.0.0.1
+2025-06-04 10:58:36 - User: SYSTEM | Action: CLIENT_CONNECTED | Details: 127.0.0.1
+2025-06-04 10:58:46 - User: Walter1901 | Action: LOGIN_ATTEMPT
+2025-06-04 10:58:46 - User: Walter1901 | Action: LOGIN_SUCCESS
+2025-06-04 11:00:12 - User: Walter1901 | Action: SONG_REORDERED | Details: Summer2025 (2->1)
+2025-06-04 11:00:43 - User: Walter1901 | Action: PLAYLIST_LOADED | Details: Summer2025
+2025-06-04 11:00:46 - User: Walter1901 | Action: PLAYBACK_MODE_SET | Details: Sequential
+2025-06-04 11:00:50 - User: Walter1901 | Action: PLAYER_PLAY | Details: 
+2025-06-04 11:00:58 - User: Walter1901 | Action: PLAYER_PAUSE
+2025-06-04 11:01:02 - User: Walter1901 | Action: PLAYER_PLAY | Details: resume
+2025-06-04 11:01:15 - User: Walter1901 | Action: PLAYER_NEXT
+2025-06-04 11:01:18 - User: Walter1901 | Action: PLAYER_NEXT
+2025-06-04 11:01:23 - User: Walter1901 | Action: PLAYER_NEXT
+2025-06-04 11:01:27 - User: Walter1901 | Action: PLAYER_PREV
+2025-06-04 11:01:29 - User: Walter1901 | Action: PLAYER_PAUSE
+2025-06-04 11:01:31 - User: Walter1901 | Action: PLAYER_PLAY | Details: resume
+2025-06-04 11:01:39 - User: Walter1901 | Action: PLAYER_STOP
+2025-06-04 11:01:42 - User: Walter1901 | Action: PLAYER_PLAY | Details: 
+2025-06-04 11:01:47 - User: Walter1901 | Action: PLAYER_STOP
+2025-06-04 11:01:47 - User: Walter1901 | Action: PLAYER_EXIT
+2025-06-04 11:01:57 - User: Walter1901 | Action: LOGOUT
+2025-06-04 11:02:05 - User: Walter | Action: LOGIN_ATTEMPT
+2025-06-04 11:02:05 - User: Walter | Action: LOGIN_SUCCESS
+2025-06-04 11:02:10 - User: Walter | Action: LOGIN_ATTEMPT
+2025-06-04 11:02:10 - User: Walter | Action: LOGIN_SUCCESS
+2025-06-04 11:03:10 - User: Walter | Action: SESSION_ENDED
+2025-06-04 11:03:10 - User: SYSTEM | Action: CLIENT_DISCONNECTED | Details: 127.0.0.1
+2025-06-04 11:04:45 - User: SYSTEM | Action: SERVER_STOPPED
+2025-06-04 11:04:45 - User: SYSTEM | Action: SERVER_STOPPED
+2025-06-04 13:20:04 - User: SYSTEM | Action: MUSIC_LIBRARY_LOADED | Details: 5 songs
+2025-06-04 13:20:04 - User: SYSTEM | Action: SERVER_STARTED | Details: Port: 12345
+2025-06-04 13:20:08 - User: SYSTEM | Action: CLIENT_CONNECTED | Details: 127.0.0.1
+2025-06-04 13:20:08 - User: SYSTEM | Action: CLIENT_CONNECTED | Details: 127.0.0.1
+2025-06-04 13:20:21 - User: Walter1901 | Action: LOGIN_ATTEMPT
+2025-06-04 13:20:22 - User: Walter1901 | Action: LOGIN_SUCCESS
+2025-06-04 13:20:27 - User: Walter1901 | Action: PLAYLIST_LOADED | Details: Summer2025
+2025-06-04 13:20:28 - User: Walter1901 | Action: PLAYBACK_MODE_SET | Details: Sequential
+2025-06-04 13:20:31 - User: Walter1901 | Action: PLAYER_PLAY | Details: 
+2025-06-04 13:20:35 - User: Walter1901 | Action: PLAYER_PAUSE
+2025-06-04 13:20:37 - User: Walter1901 | Action: PLAYER_PLAY | Details: resume
+2025-06-04 13:21:05 - User: Walter1901 | Action: SESSION_ENDED
+2025-06-04 13:21:05 - User: SYSTEM | Action: CLIENT_DISCONNECTED | Details: 127.0.0.1
+2025-06-04 13:21:05 - User: SYSTEM | Action: SERVER_STOPPED
+2025-06-04 13:21:05 - User: SYSTEM | Action: SERVER_STOPPED
+2025-06-04 18:17:26 - User: SYSTEM | Action: MUSIC_LIBRARY_LOADED | Details: 5 songs
+2025-06-04 18:17:26 - User: SYSTEM | Action: SERVER_STARTED | Details: Port: 12345
+2025-06-04 18:17:31 - User: SYSTEM | Action: CLIENT_CONNECTED | Details: 127.0.0.1
+2025-06-04 18:17:31 - User: SYSTEM | Action: CLIENT_CONNECTED | Details: 127.0.0.1
+2025-06-04 18:17:41 - User: Walter1901 | Action: LOGIN_ATTEMPT
+2025-06-04 18:17:41 - User: Walter1901 | Action: LOGIN_FAILED | Details: Incorrect credentials
+2025-06-04 18:17:48 - User: Walter | Action: LOGIN_ATTEMPT
+2025-06-04 18:17:49 - User: Walter | Action: LOGIN_FAILED | Details: Incorrect credentials
+2025-06-04 18:17:56 - User: SYSTEM | Action: CLIENT_DISCONNECTED | Details: 127.0.0.1
+2025-06-04 18:17:56 - User: SYSTEM | Action: SERVER_STOPPED
+2025-06-04 18:17:56 - User: SYSTEM | Action: SERVER_STOPPED
+2025-06-04 18:21:59 - User: SYSTEM | Action: MUSIC_LIBRARY_LOADED | Details: 5 songs
+2025-06-04 18:21:59 - User: SYSTEM | Action: SERVER_ERROR | Details: Failed to start server
+2025-06-04 18:21:59 - User: SYSTEM | Action: SERVER_STOPPED
+2025-06-04 18:22:48 - User: SYSTEM | Action: MUSIC_LIBRARY_LOADED | Details: 5 songs
+2025-06-04 18:22:48 - User: SYSTEM | Action: SERVER_STARTED | Details: Port: 12345
+2025-06-04 18:22:57 - User: SYSTEM | Action: CLIENT_CONNECTED | Details: 127.0.0.1
+2025-06-04 18:22:57 - User: SYSTEM | Action: CLIENT_CONNECTED | Details: 127.0.0.1
+2025-06-04 18:23:06 - User: Walter1901 | Action: LOGIN_ATTEMPT
+2025-06-04 18:23:06 - User: Walter1901 | Action: LOGIN_SUCCESS
+2025-06-04 18:23:56 - User: Walter1901 | Action: SONG_ADDED | Details: o -> Summer2025
+2025-06-04 18:23:59 - User: Walter1901 | Action: SESSION_ENDED
+2025-06-04 18:23:59 - User: SYSTEM | Action: CLIENT_DISCONNECTED | Details: 127.0.0.1
+2025-06-04 18:23:59 - User: SYSTEM | Action: SERVER_STOPPED
+2025-06-04 18:23:59 - User: SYSTEM | Action: SERVER_STOPPED
+2025-06-04 18:29:34 - User: SYSTEM | Action: MUSIC_LIBRARY_LOADED | Details: 5 songs
+2025-06-04 18:29:34 - User: SYSTEM | Action: SERVER_STARTED | Details: Port: 12345
+2025-06-04 18:29:39 - User: SYSTEM | Action: CLIENT_CONNECTED | Details: 127.0.0.1
+2025-06-04 18:29:39 - User: SYSTEM | Action: CLIENT_CONNECTED | Details: 127.0.0.1
+2025-06-04 18:30:39 - User: SYSTEM | Action: CLIENT_DISCONNECTED | Details: 127.0.0.1
+2025-06-04 18:31:20 - User: SYSTEM | Action: CLIENT_CONNECTED | Details: 127.0.0.1
+2025-06-04 18:31:20 - User: SYSTEM | Action: CLIENT_CONNECTED | Details: 127.0.0.1
+2025-06-04 18:31:28 - User: Walter | Action: LOGIN_ATTEMPT
+2025-06-04 18:31:29 - User: Walter | Action: LOGIN_SUCCESS
+2025-06-04 18:34:01 - User: Walter | Action: SESSION_ENDED
+2025-06-04 18:34:01 - User: SYSTEM | Action: CLIENT_DISCONNECTED | Details: 127.0.0.1
+2025-06-04 18:41:53 - User: SYSTEM | Action: SERVER_STOPPED
+2025-06-04 18:41:53 - User: SYSTEM | Action: SERVER_STOPPED
+2025-06-04 19:56:52 - User: SYSTEM | Action: SERVER_STOPPED
+2025-06-04 19:56:52 - User: SYSTEM | Action: SERVER_STOPPED
