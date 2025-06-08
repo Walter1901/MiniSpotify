@@ -6,14 +6,19 @@ REQUIREMENTS:
 - Working sound connection
 
 INSTALLATION:
-1. Extract all files to a folder
-2. Double-click on start-server.bat
-3. Double-click on start-client.bat
+1. Extract the folder release.zip
+2. 3 options:
+    1. Use the provided start-both.bat to run both server and client
+    2. Use start-server.bat to run the server and start-client.bat to run the client separately
+    3. Run the server and client manually:
+       - Open a terminal in the server folder and run: `java -jar minispotify-server.jar`
+       - Open a terminal in the client folder and run: `java -jar minispotify-client-jar-with-dependencies.jar`
 
 USAGE:
 - Create an account or use: Walter1901 / 123456789
 - Explore the music library (6 songs included)
-- Create playlists
+- Create playlists or use the Summer2025 playlist
+- Search for songs, titles, or artists
 - Listen to music!
 
 INCLUDED MUSIC:
